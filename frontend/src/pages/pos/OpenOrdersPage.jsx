@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import AppHeader from "../../components/layout/AppHeader";
 import {
   getOrders,
   printCustomerBill,
@@ -108,8 +109,8 @@ function OpenOrdersPage() {
   return (
     <div className="min-h-screen bg-[#0D1117] text-white">
       <AppHeader
-        title="POS Terminal"
-        subtitle="Create orders, print tickets, and manage tables"
+        title="Open Orders"
+        subtitle="Print tickets, bills, and close payments"
         showBackToDashboard={true}
       />
 

@@ -6,6 +6,7 @@ import ProductGrid from "../../components/pos/ProductGrid";
 import CartPanel from "../../components/pos/CartPanel";
 import TableSelector from "../../components/pos/TableSelector";
 import { createOrder } from "../../api/ordersApi";
+import AppHeader from "../../components/layout/AppHeader";
 
 function POSPage() {
   const user = JSON.parse(localStorage.getItem("zera_user") || "{}");
