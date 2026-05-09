@@ -143,32 +143,11 @@ function POSPage() {
 
   return (
     <div className="min-h-screen bg-[#0D1117] text-white">
-      <header className="border-b border-slate-800 bg-[#07111c] px-6 py-4">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold">zeraPOS</h1>
-            <p className="text-slate-400 text-sm">
-              POS Terminal · {user.name} · {user.role}
-            </p>
-          </div>
-
-          <div className="flex gap-3">
-            <Link
-              to="/orders/open"
-              className="bg-green-600 hover:bg-green-700 px-4 py-3 rounded-xl font-semibold"
-            >
-              Open Orders
-            </Link>
-
-            <Link
-              to="/dashboard"
-              className="bg-slate-800 hover:bg-slate-700 px-4 py-3 rounded-xl font-semibold"
-            >
-              Dashboard
-            </Link>
-          </div>
-        </div>
-      </header>
+      <AppHeader
+        title="POS Terminal"
+        subtitle="Create orders, print tickets, and manage tables"
+        showBackToDashboard={true}
+      />
 
       <main className="p-5 grid xl:grid-cols-[1fr_420px] gap-5 h-[calc(100vh-81px)]">
         <section className="overflow-y-auto pr-1">

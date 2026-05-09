@@ -1,6 +1,19 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { getOrders } from "../../api/ordersApi";
+import {
+  getOrders,
+  printCustomerBill,
+  printOrderTicket,
+  payOrder,
+} from "../../api/ordersApi";
+
+import { printReceiptWindow } from "../../utils/printReceipt";
+
+import {
+  buildCustomerBill,
+  buildPreparationTicket,
+  buildPaidReceipt,
+} from "../../utils/receiptTemplates";
 
 function OpenOrdersPage() {
   const [orders, setOrders] = useState([]);
@@ -29,35 +42,76 @@ function OpenOrdersPage() {
   useEffect(() => {
     loadOrders();
   }, []);
+  async function handlePrintPreparationTicket(orderId, ticketType) {
+    try {
+      setError("");
+
+      const response = await printOrderTicket(orderId);
+      const order = response.data;
+
+      const html = buildPreparationTicket(order, ticketType);
+
+      if (!html) {
+        setError(
+          ticketType === "kitchen"
+            ? "This order has no kitchen items."
+            : "This order has no bar items."
+        );
+        return;
+      }
+
+      const title = ticketType === "kitchen" ? "Kitchen Ticket" : "Bar Ticket";
+
+      printReceiptWindow(title, html);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to print ticket");
+    }
+  }
+
+  async function handlePrintBill(orderId) {
+    try {
+      const response = await printCustomerBill(orderId);
+      const html = buildCustomerBill(response.data);
+      printReceiptWindow("Customer Bill", html);
+      await loadOrders();
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to print bill");
+    }
+  }
+  async function handlePayment(order) {
+    try {
+      const method = window.prompt(
+        "Enter payment method:\nCash\nMTN MoMo\nAirtel Money\nCard",
+        "Cash"
+      );
+
+      if (!method) {
+        return;
+      }
+
+      const response = await payOrder(order.id, {
+        order_id: order.id,
+        amount: order.total,
+        method,
+      });
+
+      const html = buildPaidReceipt(response.data, method);
+
+      printReceiptWindow("Paid Receipt", html);
+
+      await loadOrders();
+    } catch (err) {
+      setError(err.response?.data?.message || "Payment failed");
+    }
+  }
 
   return (
     <div className="min-h-screen bg-[#0D1117] text-white">
-      <header className="border-b border-slate-800 bg-[#07111c] px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Open Orders</h1>
-            <p className="text-slate-400 text-sm">
-              View active table and takeaway orders
-            </p>
-          </div>
-
-          <div className="flex gap-3">
-            <Link
-              to="/pos"
-              className="bg-purple-600 hover:bg-purple-700 px-4 py-3 rounded-xl font-semibold"
-            >
-              New Order
-            </Link>
-
-            <Link
-              to="/dashboard"
-              className="bg-slate-800 hover:bg-slate-700 px-4 py-3 rounded-xl font-semibold"
-            >
-              Dashboard
-            </Link>
-          </div>
-        </div>
-      </header>
+      <AppHeader
+        title="POS Terminal"
+        subtitle="Create orders, print tickets, and manage tables"
+        showBackToDashboard={true}
+      />
 
       <main className="p-6 max-w-7xl mx-auto">
         {error && (
@@ -91,7 +145,12 @@ function OpenOrdersPage() {
                     {order.status}
                   </span>
                 </div>
-
+                <div className="mt-4 bg-slate-950/60 border border-slate-800 rounded-2xl p-3">
+                  <p className="text-xs text-slate-400">
+                    Print kitchen ticket for food, bar ticket for drinks, then
+                    print customer bill when the client is ready to pay.
+                  </p>
+                </div>
                 <div className="mt-5 space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-slate-400">Server</span>
@@ -117,9 +176,39 @@ function OpenOrdersPage() {
                     </h3>
                   </div>
 
-                  <button className="bg-green-600 hover:bg-green-700 px-4 py-3 rounded-xl font-semibold">
-                    Pay
-                  </button>
+                  <div className="mt-5 grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() =>
+                        handlePrintPreparationTicket(order.id, "kitchen")
+                      }
+                      className="bg-orange-600 hover:bg-orange-700 px-3 py-3 rounded-xl font-semibold text-sm"
+                    >
+                      Kitchen Ticket
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        handlePrintPreparationTicket(order.id, "bar")
+                      }
+                      className="bg-purple-600 hover:bg-purple-700 px-3 py-3 rounded-xl font-semibold text-sm"
+                    >
+                      Bar Ticket
+                    </button>
+
+                    <button
+                      onClick={() => handlePrintBill(order.id)}
+                      className="bg-yellow-600 hover:bg-yellow-700 px-3 py-3 rounded-xl font-semibold text-sm"
+                    >
+                      Customer Bill
+                    </button>
+
+                    <button
+                      onClick={() => handlePayment(order)}
+                      className="bg-green-600 hover:bg-green-700 px-3 py-3 rounded-xl font-semibold text-sm"
+                    >
+                      Pay Order
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

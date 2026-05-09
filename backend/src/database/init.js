@@ -108,7 +108,17 @@ function initDatabase() {
         FOREIGN KEY (received_by) REFERENCES users(id)
       )
     `);
-
+    db.run(`
+      CREATE TABLE IF NOT EXISTS print_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_id INTEGER NOT NULL,
+        print_type TEXT NOT NULL,
+        printed_by INTEGER,
+        printed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (order_id) REFERENCES orders(id),
+        FOREIGN KEY (printed_by) REFERENCES users(id)
+      )
+    `);
     seedDefaultAdmin();
     seedDefaultPOSData();
   });
