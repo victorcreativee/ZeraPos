@@ -93,23 +93,25 @@ async function printBill(req, res) {
 }
 async function payOrder(req, res) {
   try {
+    const orderId = req.params.id;
+
     const result = await ordersService.payOrder({
-      ...req.body,
+      order_id: orderId,
+      amount: req.body.amount,
+      method: req.body.method,
+      reference: req.body.reference,
       received_by: req.user.id,
     });
 
-    const order = await ordersService.getOrderDetails(req.body.order_id);
+    const order = await ordersService.getOrderDetails(orderId);
 
-    await ordersService.logPrint(
-      req.body.order_id,
-      req.user.id,
-      "paid_receipt"
-    );
+    await ordersService.logPrint(orderId, req.user.id, "paid_receipt");
 
     res.json({
       success: true,
       message: "Payment completed successfully",
       data: order,
+      payment: result,
     });
   } catch (error) {
     res.status(400).json({
@@ -118,7 +120,28 @@ async function payOrder(req, res) {
     });
   }
 }
+async function printPaidReceipt(req, res) {
+  try {
+    const result = await ordersService.printPaidReceipt(
+      req.params.id,
+      req.user.id
+    );
 
+    const order = await ordersService.getOrderDetails(req.params.id);
+
+    res.json({
+      success: true,
+      message: "Paid receipt generated",
+      data: order,
+      print: result,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}
 module.exports = {
   createOrder,
   getOrders,
@@ -126,4 +149,5 @@ module.exports = {
   printTicket,
   printBill,
   payOrder,
+  printPaidReceipt,
 };

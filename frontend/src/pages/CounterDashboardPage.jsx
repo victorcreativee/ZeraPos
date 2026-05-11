@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import AppHeader from "../components/layout/AppHeader";
 import { getCounterDashboardStats } from "../api/reportsApi";
+import { payOrder, printPaidReceipt } from "../api/ordersApi";
 
 function CounterDashboardPage() {
   const [data, setData] = useState({
@@ -14,6 +15,14 @@ function CounterDashboardPage() {
     open_orders: [],
     recent_payments: [],
   });
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [reference, setReference] = useState("");
+  const [paying, setPaying] = useState(false);
+  const [error, setError] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [lastPaidOrder, setLastPaidOrder] = useState(null);
 
   useEffect(() => {
     async function loadCounterStats() {
@@ -30,7 +39,59 @@ function CounterDashboardPage() {
     const interval = setInterval(loadCounterStats, 15000);
     return () => clearInterval(interval);
   }, []);
+  async function handleReceivePayment() {
+    if (!selectedOrder) return;
 
+    try {
+      setPaying(true);
+      setError("");
+
+      await payOrder(selectedOrder.id, {
+        amount: Number(selectedOrder.balance || selectedOrder.total || 0),
+        method: paymentMethod,
+        reference,
+      });
+
+      setSuccessMessage(`${selectedOrder.order_number} paid successfully`);
+      setLastPaidOrder(selectedOrder);
+      setSelectedOrder(null);
+      setTimeout(() => {
+        setSuccessMessage("");
+      }, 5000);
+      setReference("");
+
+      const response = await getCounterDashboardStats();
+      setData(response.data);
+    } catch (err) {
+      setError(err.response?.data?.message || "Payment failed");
+    } finally {
+      setPaying(false);
+    }
+  }
+
+  const filteredOpenOrders = data.open_orders.filter((order) => {
+    const keyword = searchTerm.toLowerCase();
+
+    return (
+      order.order_number?.toLowerCase().includes(keyword) ||
+      order.table_name?.toLowerCase().includes(keyword) ||
+      order.server_name?.toLowerCase().includes(keyword)
+    );
+  });
+
+  async function handlePrintPaidReceipt(orderId) {
+    try {
+      await printPaidReceipt(orderId);
+      setSuccessMessage("Paid receipt printed successfully");
+      setLastPaidOrder(null);
+
+      setTimeout(() => {
+        setSuccessMessage("");
+      }, 3000);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to print paid receipt");
+    }
+  }
   return (
     <div className="min-h-screen bg-[#07111c] text-white">
       <AppHeader
@@ -39,6 +100,21 @@ function CounterDashboardPage() {
       />
 
       <main className="max-w-7xl mx-auto p-6 space-y-6">
+        {successMessage && (
+          <div className="bg-green-500/10 border border-green-500 text-green-300 px-5 py-4 rounded-2xl flex items-center justify-between gap-4">
+            <span> {successMessage}</span>
+
+            {lastPaidOrder && (
+              <button
+                onClick={() => handlePrintPaidReceipt(lastPaidOrder.id)}
+                className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-xl font-bold text-sm"
+              >
+                Print Paid Receipt
+              </button>
+            )}
+          </div>
+        )}
+
         <section className="grid md:grid-cols-2 xl:grid-cols-5 gap-5">
           <StatCard
             title="Open Bills"
@@ -96,13 +172,19 @@ function CounterDashboardPage() {
             </div>
 
             <div className="space-y-3">
-              {data.open_orders.length === 0 ? (
+              <input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search table, order number, or waiter..."
+                className="w-full mb-4 bg-[#0D1117] border border-slate-700 rounded-2xl px-4 py-3 text-white outline-none focus:border-green-500"
+              />
+              {filteredOpenOrders.length === 0 ? (
                 <p className="text-slate-400">No open bills found.</p>
               ) : (
-                data.open_orders.map((order) => (
+                filteredOpenOrders.map((order) => (
                   <div
                     key={order.id}
-                    className="bg-[#0D1117] border border-slate-800 rounded-2xl p-4 flex items-center justify-between gap-4"
+                    className="bg-[#0D1117] border border-slate-800 rounded-2xl p-4"
                   >
                     <div>
                       <p className="font-black">
@@ -125,6 +207,16 @@ function CounterDashboardPage() {
                         {order.status}
                       </p>
                     </div>
+                    <button
+                      onClick={() => {
+                        setSelectedOrder(order);
+                        setPaymentMethod("cash");
+                        setReference("");
+                      }}
+                      className="mt-3 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-xl font-bold text-sm"
+                    >
+                      Receive Payment
+                    </button>
                   </div>
                 ))
               )}
@@ -169,6 +261,76 @@ function CounterDashboardPage() {
             </div>
           </div>
         </section>
+        {selectedOrder && (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+            <div className="w-full max-w-md bg-[#111827] border border-slate-700 rounded-3xl p-6">
+              <h2 className="text-2xl font-black">Receive Payment</h2>
+
+              <p className="text-slate-400 mt-2">
+                {selectedOrder.table_name || "Takeaway"} •{" "}
+                {selectedOrder.order_number}
+              </p>
+
+              <div className="mt-5 bg-[#0D1117] rounded-2xl p-4">
+                <p className="text-slate-400 text-sm">Amount Due</p>
+                <p className="text-3xl font-black text-green-400 mt-2">
+                  UGX{" "}
+                  {Number(
+                    selectedOrder.balance || selectedOrder.total || 0
+                  ).toLocaleString()}
+                </p>
+              </div>
+
+              <div className="mt-5">
+                <label className="text-sm text-slate-400">Payment Method</label>
+                <select
+                  value={paymentMethod}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                  className="w-full mt-2 bg-[#0D1117] border border-slate-700 rounded-2xl px-4 py-3"
+                >
+                  <option value="cash">Cash</option>
+                  <option value="mobile_money">Mobile Money</option>
+                  <option value="card">Card</option>
+                </select>
+              </div>
+
+              <div className="mt-5">
+                <label className="text-sm text-slate-400">
+                  Reference / Transaction ID
+                </label>
+                <input
+                  value={reference}
+                  onChange={(e) => setReference(e.target.value)}
+                  placeholder="Optional for cash"
+                  className="w-full mt-2 bg-[#0D1117] border border-slate-700 rounded-2xl px-4 py-3"
+                />
+              </div>
+
+              {error && (
+                <div className="mt-4 bg-red-500/10 border border-red-500 text-red-300 px-4 py-3 rounded-xl">
+                  {error}
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3 mt-6">
+                <button
+                  onClick={() => setSelectedOrder(null)}
+                  className="bg-slate-700 hover:bg-slate-600 rounded-2xl py-3 font-bold"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  onClick={handleReceivePayment}
+                  disabled={paying}
+                  className="bg-green-500 hover:bg-green-600 disabled:opacity-50 rounded-2xl py-3 font-bold"
+                >
+                  {paying ? "Processing..." : "Confirm Payment"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

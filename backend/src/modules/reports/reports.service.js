@@ -389,7 +389,7 @@ function getCounterDashboardStats(userId) {
         COUNT(*) AS open_bills,
         COALESCE(SUM(balance), 0) AS open_bill_amount
       FROM orders
-      WHERE status NOT IN ('paid', 'cancelled')
+      WHERE status IN ('open', 'sent', 'bill_printed')
       `,
       [],
       (openErr, openSummary) => {
@@ -426,7 +426,7 @@ function getCounterDashboardStats(userId) {
               FROM orders
               LEFT JOIN restaurant_tables ON orders.table_id = restaurant_tables.id
               LEFT JOIN users ON orders.server_id = users.id
-              WHERE orders.status NOT IN ('paid', 'cancelled')
+              WHERE orders.status IN ('open', 'sent', 'bill_printed')
               ORDER BY orders.id DESC
               `,
               [],

@@ -203,12 +203,12 @@ function OpenOrdersPage() {
                       Customer Bill
                     </button>
 
-                    <button
+                    {/* <button
                       onClick={() => handlePayment(order)}
                       className="bg-green-600 hover:bg-green-700 px-3 py-3 rounded-xl font-semibold text-sm"
                     >
                       Pay Order
-                    </button>
+                    </button> */}
                   </div>
                 </div>
               </div>

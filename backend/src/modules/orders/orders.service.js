@@ -1,11 +1,30 @@
 const db = require("../../database/db");
 
 function generateOrderNumber() {
-  const random = Math.floor(1000 + Math.random() * 9000);
-  return `ORD-${Date.now()}-${random}`;
+  return new Promise((resolve, reject) => {
+    db.get(
+      `
+      SELECT id 
+      FROM orders 
+      ORDER BY id DESC 
+      LIMIT 1
+      `,
+      [],
+      (err, row) => {
+        if (err) return reject(err);
+
+        const nextNumber = row ? row.id + 1 : 1;
+        const orderNumber = `ORD-${String(nextNumber).padStart(4, "0")}`;
+
+        resolve(orderNumber);
+      }
+    );
+  });
 }
 
-function createOrder(data) {
+async function createOrder(data) {
+  const orderNumber = await generateOrderNumber();
+
   return new Promise((resolve, reject) => {
     const {
       table_id = null,
@@ -24,7 +43,6 @@ function createOrder(data) {
     );
 
     const total = subtotal;
-    const orderNumber = generateOrderNumber();
 
     db.run(
       `
@@ -296,6 +314,48 @@ function payOrder(data) {
     );
   });
 }
+
+function printPaidReceipt(orderId, printedBy) {
+  return new Promise((resolve, reject) => {
+    db.get(
+      `
+      SELECT *
+      FROM orders
+      WHERE id = ?
+      `,
+      [orderId],
+      (err, order) => {
+        if (err) return reject(err);
+
+        if (!order) {
+          return reject(new Error("Order not found"));
+        }
+
+        if (order.status !== "paid") {
+          return reject(new Error("Order is not paid yet"));
+        }
+
+        db.run(
+          `
+          INSERT INTO print_logs (order_id, printed_by, print_type)
+          VALUES (?, ?, ?)
+          `,
+          [orderId, printedBy, "paid_receipt"],
+          function (printErr) {
+            if (printErr) return reject(printErr);
+
+            resolve({
+              success: true,
+              order_id: orderId,
+              print_log_id: this.lastID,
+            });
+          }
+        );
+      }
+    );
+  });
+}
+
 module.exports = {
   createOrder,
   getOrders,
@@ -303,4 +363,5 @@ module.exports = {
   logPrint,
   markBillPrinted,
   payOrder,
+  printPaidReceipt,
 };

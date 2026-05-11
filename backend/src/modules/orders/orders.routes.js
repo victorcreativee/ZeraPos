@@ -14,5 +14,10 @@ router.post("/:id/print-ticket", requireAuth, ordersController.printTicket);
 
 router.post("/:id/print-bill", requireAuth, ordersController.printBill);
 router.post("/:id/pay", requireAuth, ordersController.payOrder);
+router.post(
+  "/:id/print-paid-receipt",
+  requireAuth,
+  ordersController.printPaidReceipt
+);
 
 module.exports = router;

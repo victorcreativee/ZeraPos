@@ -29,3 +29,9 @@ export async function payOrder(orderId, paymentData) {
 
   return response.data;
 }
+export async function printPaidReceipt(orderId) {
+  const response = await apiClient.post(
+    `/orders/${orderId}/print-paid-receipt`
+  );
+  return response.data;
+}
