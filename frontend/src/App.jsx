@@ -5,7 +5,9 @@ import UsersPage from "./pages/UsersPage";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import POSPage from "./pages/pos/POSPage";
 import OpenOrdersPage from "./pages/pos/OpenOrdersPage";
-
+import MyOrdersHistoryPage from "./pages/pos/MyOrdersHistoryPage";
+import ManagerDashboardPage from "./pages/ManagerDashboardPage";
+import AdminDashboardPage from "./pages/AdminDashboardPage";
 function App() {
   return (
     <Routes>
@@ -44,6 +46,30 @@ function App() {
         element={
           <ProtectedRoute allowedRoles={["admin", "manager", "server"]}>
             <OpenOrdersPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/orders/history"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "manager", "server"]}>
+            <MyOrdersHistoryPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/manager"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "manager"]}>
+            <ManagerDashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <AdminDashboardPage />
           </ProtectedRoute>
         }
       />

@@ -26,7 +26,14 @@ function LoginPage() {
   const saveLogin = (data) => {
     localStorage.setItem("zera_token", data.token);
     localStorage.setItem("zera_user", JSON.stringify(data.user));
-    navigate("/dashboard");
+
+    const role = data.user?.role;
+
+    if (role === "server") {
+      navigate("/dashboard");
+    } else {
+      navigate("/manager");
+    }
   };
 
   const handlePinLogin = async () => {
