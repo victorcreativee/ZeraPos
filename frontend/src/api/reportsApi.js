@@ -19,3 +19,7 @@ export async function getManagerRestaurantDashboard() {
   const response = await apiClient.get("/reports/manager-restaurant-dashboard");
   return response.data;
 }
+export async function getCounterDashboardStats() {
+  const response = await apiClient.get("/reports/counter-dashboard");
+  return response.data;
+}

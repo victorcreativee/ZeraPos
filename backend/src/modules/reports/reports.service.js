@@ -378,9 +378,114 @@ function getManagerRestaurantDashboard() {
     );
   });
 }
+
+function getCounterDashboardStats(userId) {
+  const businessDay = getBusinessDayRangeUtc();
+
+  return new Promise((resolve, reject) => {
+    db.get(
+      `
+      SELECT
+        COUNT(*) AS open_bills,
+        COALESCE(SUM(balance), 0) AS open_bill_amount
+      FROM orders
+      WHERE status NOT IN ('paid', 'cancelled')
+      `,
+      [],
+      (openErr, openSummary) => {
+        if (openErr) return reject(openErr);
+
+        db.get(
+          `
+          SELECT
+            COUNT(*) AS paid_orders_today,
+            COALESCE(SUM(amount), 0) AS total_collected_today,
+            COALESCE(SUM(CASE WHEN method = 'cash' THEN amount ELSE 0 END), 0) AS cash_collected,
+            COALESCE(SUM(CASE WHEN method = 'mobile_money' THEN amount ELSE 0 END), 0) AS mobile_money_collected,
+            COALESCE(SUM(CASE WHEN method = 'card' THEN amount ELSE 0 END), 0) AS card_collected
+          FROM payments
+          WHERE received_by = ?
+          AND created_at >= ?
+          AND created_at < ?
+          `,
+          [userId, businessDay.start, businessDay.end],
+          (paymentErr, paymentSummary) => {
+            if (paymentErr) return reject(paymentErr);
+
+            db.all(
+              `
+              SELECT
+                orders.id,
+                orders.order_number,
+                orders.total,
+                orders.balance,
+                orders.status,
+                orders.created_at,
+                restaurant_tables.name AS table_name,
+                users.name AS server_name
+              FROM orders
+              LEFT JOIN restaurant_tables ON orders.table_id = restaurant_tables.id
+              LEFT JOIN users ON orders.server_id = users.id
+              WHERE orders.status NOT IN ('paid', 'cancelled')
+              ORDER BY orders.id DESC
+              `,
+              [],
+              (openOrdersErr, openOrders) => {
+                if (openOrdersErr) return reject(openOrdersErr);
+
+                db.all(
+                  `
+                  SELECT
+                    payments.id,
+                    payments.order_id,
+                    payments.method,
+                    payments.amount,
+                    payments.reference,
+                    payments.created_at,
+                    orders.order_number,
+                    restaurant_tables.name AS table_name,
+                    users.name AS server_name
+                  FROM payments
+                  LEFT JOIN orders ON payments.order_id = orders.id
+                  LEFT JOIN restaurant_tables ON orders.table_id = restaurant_tables.id
+                  LEFT JOIN users ON orders.server_id = users.id
+                  WHERE payments.received_by = ?
+                  AND payments.created_at >= ?
+                  AND payments.created_at < ?
+                  ORDER BY payments.id DESC
+                  LIMIT 10
+                  `,
+                  [userId, businessDay.start, businessDay.end],
+                  (recentPaymentsErr, recentPayments) => {
+                    if (recentPaymentsErr) return reject(recentPaymentsErr);
+
+                    resolve({
+                      open_bills: openSummary?.open_bills || 0,
+                      open_bill_amount: openSummary?.open_bill_amount || 0,
+                      paid_orders_today: paymentSummary?.paid_orders_today || 0,
+                      total_collected_today:
+                        paymentSummary?.total_collected_today || 0,
+                      cash_collected: paymentSummary?.cash_collected || 0,
+                      mobile_money_collected:
+                        paymentSummary?.mobile_money_collected || 0,
+                      card_collected: paymentSummary?.card_collected || 0,
+                      open_orders: openOrders || [],
+                      recent_payments: recentPayments || [],
+                    });
+                  }
+                );
+              }
+            );
+          }
+        );
+      }
+    );
+  });
+}
 module.exports = {
   getMyDashboardStats,
   getMyOrdersHistory,
   getManagerDashboardStats,
   getManagerRestaurantDashboard,
+  getCounterDashboardStats,
 };

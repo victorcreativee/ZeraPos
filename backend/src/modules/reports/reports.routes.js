@@ -22,5 +22,10 @@ router.get(
   allowRoles("admin", "manager"),
   reportsController.getManagerRestaurantDashboard
 );
-
+router.get(
+  "/counter-dashboard",
+  requireAuth,
+  allowRoles("admin", "manager", "cashier"),
+  reportsController.getCounterDashboardStats
+);
 module.exports = router;

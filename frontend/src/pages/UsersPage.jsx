@@ -110,7 +110,7 @@ function UsersPage() {
         <section className="lg:col-span-1 bg-[#111827] border border-slate-800 rounded-3xl p-6">
           <h2 className="text-xl font-bold mb-1">Create Staff User</h2>
           <p className="text-slate-400 text-sm mb-6">
-            Add waiters, managers, accountants, or admins.
+            Add waiters, cashiers, managers, or system admins.
           </p>
 
           {message && (
@@ -170,10 +170,10 @@ function UsersPage() {
                 onChange={handleChange}
                 className="w-full bg-[#0D1117] border border-slate-700 rounded-2xl px-4 py-3 outline-none focus:border-purple-500"
               >
-                <option value="server">Server / Waiter</option>
+                <option value="server">Waiter / Server</option>
+                <option value="cashier">Cashier / Counter</option>
                 <option value="manager">Manager</option>
-                <option value="accountant">Accountant</option>
-                <option value="admin">Admin</option>
+                <option value="admin">System Admin</option>
               </select>
             </div>
 

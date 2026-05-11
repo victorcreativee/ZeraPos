@@ -63,9 +63,25 @@ async function getManagerRestaurantDashboard(req, res) {
     });
   }
 }
+async function getCounterDashboardStats(req, res) {
+  try {
+    const stats = await reportsService.getCounterDashboardStats(req.user.id);
+
+    res.json({
+      success: true,
+      data: stats,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}
 module.exports = {
   getMyDashboardStats,
   getMyOrdersHistory,
   getManagerDashboardStats,
   getManagerRestaurantDashboard,
+  getCounterDashboardStats,
 };

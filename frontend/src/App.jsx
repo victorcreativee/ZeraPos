@@ -8,6 +8,8 @@ import OpenOrdersPage from "./pages/pos/OpenOrdersPage";
 import MyOrdersHistoryPage from "./pages/pos/MyOrdersHistoryPage";
 import ManagerDashboardPage from "./pages/ManagerDashboardPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
+import CounterDashboardPage from "./pages/CounterDashboardPage";
+
 function App() {
   return (
     <Routes>
@@ -70,6 +72,14 @@ function App() {
         element={
           <ProtectedRoute allowedRoles={["admin"]}>
             <AdminDashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/counter"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "manager", "cashier"]}>
+            <CounterDashboardPage />
           </ProtectedRoute>
         }
       />

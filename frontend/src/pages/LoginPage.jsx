@@ -29,10 +29,14 @@ function LoginPage() {
 
     const role = data.user?.role;
 
-    if (role === "server") {
-      navigate("/dashboard");
-    } else {
+    if (role === "admin") {
+      navigate("/admin");
+    } else if (role === "manager") {
       navigate("/manager");
+    } else if (role === "cashier") {
+      navigate("/counter");
+    } else {
+      navigate("/dashboard");
     }
   };
 

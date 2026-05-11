@@ -5,7 +5,7 @@ function createUser(data) {
   return new Promise(async (resolve, reject) => {
     const { name, email, phone, role, pin, password } = data;
 
-    const allowedRoles = ["admin", "manager", "server", "accountant"];
+    const allowedRoles = ["admin", "manager", "cashier", "server"];
 
     if (!allowedRoles.includes(role)) {
       return reject(new Error("Invalid user role"));
