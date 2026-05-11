@@ -9,6 +9,8 @@ import MyOrdersHistoryPage from "./pages/pos/MyOrdersHistoryPage";
 import ManagerDashboardPage from "./pages/ManagerDashboardPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import CounterDashboardPage from "./pages/CounterDashboardPage";
+import KitchenDisplayPage from "./pages/kitchen/KitchenDisplayPage";
+import BarDisplayPage from "./pages/bar/BarDisplayPage";
 
 function App() {
   return (
@@ -80,6 +82,26 @@ function App() {
         element={
           <ProtectedRoute allowedRoles={["admin", "manager", "cashier"]}>
             <CounterDashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/kitchen"
+        element={
+          <ProtectedRoute
+            allowedRoles={["admin", "manager", "server", "cashier"]}
+          >
+            <KitchenDisplayPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/bar"
+        element={
+          <ProtectedRoute
+            allowedRoles={["admin", "manager", "server", "cashier"]}
+          >
+            <BarDisplayPage />
           </ProtectedRoute>
         }
       />

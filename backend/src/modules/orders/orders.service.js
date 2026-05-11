@@ -1,5 +1,21 @@
 const db = require("../../database/db");
 
+const ORDER_STATUSES = {
+  OPEN: "open",
+  SENT: "sent",
+  BILL_PRINTED: "bill_printed",
+  PAID: "paid",
+  CANCELLED: "cancelled",
+};
+
+const ITEM_STATUSES = {
+  PENDING: "pending",
+  PREPARING: "preparing",
+  READY: "ready",
+  SERVED: "served",
+  CANCELLED: "cancelled",
+};
+
 function generateOrderNumber() {
   return new Promise((resolve, reject) => {
     db.get(
@@ -14,11 +30,29 @@ function generateOrderNumber() {
         if (err) return reject(err);
 
         const nextNumber = row ? row.id + 1 : 1;
-        const orderNumber = `ORD-${String(nextNumber).padStart(4, "0")}`;
-
-        resolve(orderNumber);
+        resolve(`ORD-${String(nextNumber).padStart(4, "0")}`);
       }
     );
+  });
+}
+
+function validateItems(items) {
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new Error("Order items are required");
+  }
+
+  items.forEach((item) => {
+    if (!item.id || !item.name) {
+      throw new Error("Each order item must have product details");
+    }
+
+    if (!Number(item.quantity) || Number(item.quantity) <= 0) {
+      throw new Error(`Invalid quantity for ${item.name}`);
+    }
+
+    if (Number(item.price) < 0) {
+      throw new Error(`Invalid price for ${item.name}`);
+    }
   });
 }
 
@@ -26,112 +60,125 @@ async function createOrder(data) {
   const orderNumber = await generateOrderNumber();
 
   return new Promise((resolve, reject) => {
-    const {
-      table_id = null,
-      server_id,
-      order_type = "table",
-      items = [],
-    } = data;
-
-    if (!items.length) {
-      return reject(new Error("Order items are required"));
-    }
-
-    const subtotal = items.reduce(
-      (sum, item) => sum + item.price * item.quantity,
-      0
-    );
-
-    const total = subtotal;
-
-    db.run(
-      `
-      INSERT INTO orders
-      (
-        order_number,
-        table_id,
+    try {
+      const {
+        table_id = null,
         server_id,
-        order_type,
-        status,
-        subtotal,
-        total,
-        balance
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-      [
-        orderNumber,
-        table_id,
-        server_id,
-        order_type,
-        "sent",
-        subtotal,
-        total,
-        total,
-      ],
-      function (err) {
-        if (err) return reject(err);
+        order_type = "table",
+        items = [],
+        discount = 0,
+      } = data;
 
-        const orderId = this.lastID;
+      validateItems(items);
 
-        const stmt = db.prepare(`
-          INSERT INTO order_items
-          (
-            order_id,
-            product_id,
-            product_name,
-            quantity,
-            unit_price,
-            total_price,
-            send_to
-          )
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-        `);
+      const subtotal = items.reduce((sum, item) => {
+        return sum + Number(item.price) * Number(item.quantity);
+      }, 0);
 
-        items.forEach((item) => {
-          stmt.run([
-            orderId,
-            item.id,
-            item.name,
-            item.quantity,
-            item.price,
-            item.price * item.quantity,
-            item.send_to || "none",
-          ]);
+      const safeDiscount = Math.max(
+        0,
+        Math.min(Number(discount) || 0, subtotal)
+      );
+      const total = subtotal - safeDiscount;
 
-          if (item.track_stock) {
+      db.run(
+        `
+        INSERT INTO orders
+        (
+          order_number,
+          table_id,
+          server_id,
+          order_type,
+          status,
+          subtotal,
+          discount,
+          total,
+          balance
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        [
+          orderNumber,
+          table_id,
+          server_id,
+          order_type,
+          ORDER_STATUSES.SENT,
+          subtotal,
+          safeDiscount,
+          total,
+          total,
+        ],
+        function (err) {
+          if (err) return reject(err);
+
+          const orderId = this.lastID;
+
+          const stmt = db.prepare(`
+            INSERT INTO order_items
+            (
+              order_id,
+              product_id,
+              product_name,
+              quantity,
+              unit_price,
+              total_price,
+              status,
+              send_to
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          `);
+
+          items.forEach((item) => {
+            stmt.run([
+              orderId,
+              item.id,
+              item.name,
+              Number(item.quantity),
+              Number(item.price),
+              Number(item.price) * Number(item.quantity),
+              ITEM_STATUSES.PENDING,
+              item.send_to || "none",
+            ]);
+
+            if (item.track_stock) {
+              db.run(
+                `
+                UPDATE products
+                SET stock_quantity = stock_quantity - ?
+                WHERE id = ?
+                `,
+                [Number(item.quantity), item.id]
+              );
+            }
+          });
+
+          stmt.finalize();
+
+          if (table_id) {
             db.run(
               `
-              UPDATE products
-              SET stock_quantity = stock_quantity - ?
+              UPDATE restaurant_tables
+              SET status = 'occupied'
               WHERE id = ?
               `,
-              [item.quantity, item.id]
+              [table_id]
             );
           }
-        });
 
-        stmt.finalize();
-
-        if (table_id) {
-          db.run(
-            `
-            UPDATE restaurant_tables
-            SET status = 'occupied'
-            WHERE id = ?
-            `,
-            [table_id]
-          );
+          resolve({
+            id: orderId,
+            order_number: orderNumber,
+            status: ORDER_STATUSES.SENT,
+            subtotal,
+            discount: safeDiscount,
+            total,
+            balance: total,
+          });
         }
-
-        resolve({
-          id: orderId,
-          order_number: orderNumber,
-          subtotal,
-          total,
-        });
-      }
-    );
+      );
+    } catch (error) {
+      reject(error);
+    }
   });
 }
 
@@ -226,10 +273,16 @@ function markBillPrinted(orderId) {
     db.run(
       `
       UPDATE orders
-      SET status = 'bill_printed'
+      SET status = ?
       WHERE id = ?
+      AND status NOT IN (?, ?)
       `,
-      [orderId],
+      [
+        ORDER_STATUSES.BILL_PRINTED,
+        orderId,
+        ORDER_STATUSES.PAID,
+        ORDER_STATUSES.CANCELLED,
+      ],
       function (err) {
         if (err) return reject(err);
         resolve(true);
@@ -237,16 +290,62 @@ function markBillPrinted(orderId) {
     );
   });
 }
-function payOrder(data) {
+
+function updateOrderItemStatus({ order_id, item_id, status }) {
   return new Promise((resolve, reject) => {
-    const { order_id, amount, method, reference = null, received_by } = data;
+    const allowedStatuses = Object.values(ITEM_STATUSES);
+
+    if (!allowedStatuses.includes(status)) {
+      return reject(new Error("Invalid item status"));
+    }
+
+    let timestampField = null;
+
+    if (status === ITEM_STATUSES.PREPARING) timestampField = "prepared_at";
+    if (status === ITEM_STATUSES.READY) timestampField = "ready_at";
+    if (status === ITEM_STATUSES.SERVED) timestampField = "served_at";
+
+    const timestampSql = timestampField
+      ? `, ${timestampField} = CURRENT_TIMESTAMP`
+      : "";
+
+    db.run(
+      `
+      UPDATE order_items
+      SET status = ? ${timestampSql}
+      WHERE id = ?
+      AND order_id = ?
+      `,
+      [status, item_id, order_id],
+      function (err) {
+        if (err) return reject(err);
+
+        if (this.changes === 0) {
+          return reject(new Error("Order item not found"));
+        }
+
+        resolve({
+          order_id,
+          item_id,
+          status,
+        });
+      }
+    );
+  });
+}
+
+function cancelOrder({ order_id, reason, cancelled_by }) {
+  return new Promise((resolve, reject) => {
+    if (!reason || !reason.trim()) {
+      return reject(new Error("Cancel reason is required"));
+    }
 
     db.get(
       `
-        SELECT *
-        FROM orders
-        WHERE id = ?
-        `,
+      SELECT *
+      FROM orders
+      WHERE id = ?
+      `,
       [order_id],
       (err, order) => {
         if (err) return reject(err);
@@ -255,47 +354,149 @@ function payOrder(data) {
           return reject(new Error("Order not found"));
         }
 
-        if (order.status === "paid") {
-          return reject(new Error("Order already paid"));
+        if (order.status === ORDER_STATUSES.PAID) {
+          return reject(new Error("Paid orders cannot be cancelled"));
+        }
+
+        if (order.status === ORDER_STATUSES.CANCELLED) {
+          return reject(new Error("Order already cancelled"));
         }
 
         db.run(
           `
-            INSERT INTO payments
-            (
+          UPDATE orders
+          SET
+            status = ?,
+            cancel_reason = ?,
+            cancelled_by = ?,
+            cancelled_at = CURRENT_TIMESTAMP,
+            balance = 0
+          WHERE id = ?
+          `,
+          [ORDER_STATUSES.CANCELLED, reason.trim(), cancelled_by, order_id],
+          function (updateErr) {
+            if (updateErr) return reject(updateErr);
+
+            db.run(
+              `
+              UPDATE order_items
+              SET status = ?
+              WHERE order_id = ?
+              `,
+              [ITEM_STATUSES.CANCELLED, order_id]
+            );
+
+            if (order.table_id) {
+              db.run(
+                `
+                UPDATE restaurant_tables
+                SET status = 'available'
+                WHERE id = ?
+                `,
+                [order.table_id]
+              );
+            }
+
+            resolve({
+              success: true,
               order_id,
-              method,
-              amount,
-              reference,
-              received_by
-            )
-            VALUES (?, ?, ?, ?, ?)
-            `,
-          [order_id, method, amount, reference, received_by],
+              status: ORDER_STATUSES.CANCELLED,
+              reason: reason.trim(),
+            });
+          }
+        );
+      }
+    );
+  });
+}
+
+function payOrder(data) {
+  return new Promise((resolve, reject) => {
+    const { order_id, amount, method, reference = null, received_by } = data;
+
+    if (!method) {
+      return reject(new Error("Payment method is required"));
+    }
+
+    db.get(
+      `
+      SELECT *
+      FROM orders
+      WHERE id = ?
+      `,
+      [order_id],
+      (err, order) => {
+        if (err) return reject(err);
+
+        if (!order) {
+          return reject(new Error("Order not found"));
+        }
+
+        if (order.status === ORDER_STATUSES.PAID) {
+          return reject(new Error("Order already paid"));
+        }
+
+        if (order.status === ORDER_STATUSES.CANCELLED) {
+          return reject(new Error("Cancelled orders cannot be paid"));
+        }
+
+        const paymentAmount = Number(amount);
+
+        if (!paymentAmount || paymentAmount <= 0) {
+          return reject(new Error("Valid payment amount is required"));
+        }
+
+        if (paymentAmount < Number(order.total)) {
+          return reject(new Error("Partial payment is not enabled yet"));
+        }
+
+        db.run(
+          `
+          INSERT INTO payments
+          (
+            order_id,
+            method,
+            amount,
+            reference,
+            received_by
+          )
+          VALUES (?, ?, ?, ?, ?)
+          `,
+          [order_id, method, paymentAmount, reference, received_by],
           function (paymentErr) {
             if (paymentErr) return reject(paymentErr);
 
             db.run(
               `
-                UPDATE orders
-                SET
-                  paid_amount = ?,
-                  balance = 0,
-                  status = 'paid',
-                  closed_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-                `,
-              [amount, order_id],
+              UPDATE orders
+              SET
+                paid_amount = ?,
+                balance = 0,
+                status = ?,
+                closed_at = CURRENT_TIMESTAMP
+              WHERE id = ?
+              `,
+              [paymentAmount, ORDER_STATUSES.PAID, order_id],
               (updateErr) => {
                 if (updateErr) return reject(updateErr);
+
+                db.run(
+                  `
+                  UPDATE order_items
+                  SET status = ?
+                  WHERE order_id = ?
+                  AND status != ?
+                  `,
+                  [ITEM_STATUSES.SERVED, order_id, ITEM_STATUSES.CANCELLED]
+                );
 
                 if (order.table_id) {
                   db.run(
                     `
-                      UPDATE restaurant_tables
-                      SET status = 'available'
-                      WHERE id = ?
-                      `,
+                    UPDATE restaurant_tables
+                    SET status = 'available'
+                    WHERE id = ?
+                    `,
                     [order.table_id]
                   );
                 }
@@ -303,7 +504,7 @@ function payOrder(data) {
                 resolve({
                   success: true,
                   order_id,
-                  amount,
+                  amount: paymentAmount,
                   method,
                 });
               }
@@ -331,7 +532,7 @@ function printPaidReceipt(orderId, printedBy) {
           return reject(new Error("Order not found"));
         }
 
-        if (order.status !== "paid") {
+        if (order.status !== ORDER_STATUSES.PAID) {
           return reject(new Error("Order is not paid yet"));
         }
 
@@ -355,6 +556,35 @@ function printPaidReceipt(orderId, printedBy) {
     );
   });
 }
+function getPreparationQueue(sendTo) {
+  return new Promise((resolve, reject) => {
+    db.all(
+      `
+      SELECT
+        order_items.*,
+        orders.order_number,
+        orders.order_type,
+        orders.created_at,
+        restaurant_tables.name AS table_name
+      FROM order_items
+      LEFT JOIN orders
+        ON order_items.order_id = orders.id
+      LEFT JOIN restaurant_tables
+        ON orders.table_id = restaurant_tables.id
+      WHERE
+        order_items.send_to = ?
+        AND order_items.status IN ('pending', 'preparing', 'ready')
+        AND orders.status NOT IN ('paid', 'cancelled')
+      ORDER BY orders.created_at ASC
+      `,
+      [sendTo],
+      (err, rows) => {
+        if (err) return reject(err);
+        resolve(rows);
+      }
+    );
+  });
+}
 
 module.exports = {
   createOrder,
@@ -362,6 +592,9 @@ module.exports = {
   getOrderDetails,
   logPrint,
   markBillPrinted,
+  updateOrderItemStatus,
+  cancelOrder,
   payOrder,
   printPaidReceipt,
+  getPreparationQueue,
 };

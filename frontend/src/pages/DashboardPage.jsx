@@ -141,6 +141,48 @@ function DashboardPage() {
             <p className="text-slate-500 mt-2">Logged-in staff account</p>
           </div>
         </section>
+        <section className="mt-6 grid md:grid-cols-3 gap-5">
+          <Link
+            to="/kitchen"
+            className="bg-[#111827] border border-slate-800 hover:border-orange-500 rounded-3xl p-6 flex items-center justify-between"
+          >
+            <div>
+              <h2 className="text-xl font-black">Kitchen Display</h2>
+              <p className="text-slate-400 mt-2">
+                View and prepare food orders
+              </p>
+            </div>
+            <span className="text-3xl text-orange-400">›</span>
+          </Link>
+
+          <Link
+            to="/bar"
+            className="bg-[#111827] border border-slate-800 hover:border-purple-500 rounded-3xl p-6 flex items-center justify-between"
+          >
+            <div>
+              <h2 className="text-xl font-black">Bar Display</h2>
+              <p className="text-slate-400 mt-2">
+                View and prepare drink orders
+              </p>
+            </div>
+            <span className="text-3xl text-purple-400">›</span>
+          </Link>
+
+          {(isAdmin || isManager) && (
+            <Link
+              to="/counter"
+              className="bg-[#111827] border border-slate-800 hover:border-green-500 rounded-3xl p-6 flex items-center justify-between"
+            >
+              <div>
+                <h2 className="text-xl font-black">Counter / Cashier</h2>
+                <p className="text-slate-400 mt-2">
+                  Receive payments and close bills
+                </p>
+              </div>
+              <span className="text-3xl text-green-400">›</span>
+            </Link>
+          )}
+        </section>
 
         <section className="grid lg:grid-cols-2 gap-6 mt-6">
           <div className="bg-[#111827] border border-slate-800 rounded-3xl p-6">

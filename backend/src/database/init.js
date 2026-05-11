@@ -1,6 +1,32 @@
 const bcrypt = require("bcryptjs");
 const db = require("./db");
 
+function addColumnIfMissing(tableName, columnName, columnDefinition) {
+  db.all(`PRAGMA table_info(${tableName})`, [], (err, columns) => {
+    if (err) {
+      console.error(`Failed checking ${tableName}.${columnName}:`, err.message);
+      return;
+    }
+
+    const exists = columns.some((column) => column.name === columnName);
+
+    if (!exists) {
+      db.run(
+        `ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDefinition}`,
+        (alterErr) => {
+          if (alterErr) {
+            console.error(
+              `Failed adding ${tableName}.${columnName}:`,
+              alterErr.message
+            );
+          } else {
+            console.log(`Added ${tableName}.${columnName}`);
+          }
+        }
+      );
+    }
+  });
+}
 function initDatabase() {
   db.serialize(() => {
     db.run(`
@@ -119,6 +145,14 @@ function initDatabase() {
         FOREIGN KEY (printed_by) REFERENCES users(id)
       )
     `);
+    addColumnIfMissing("orders", "cancel_reason", "TEXT");
+    addColumnIfMissing("orders", "cancelled_by", "INTEGER");
+    addColumnIfMissing("orders", "cancelled_at", "DATETIME");
+
+    addColumnIfMissing("order_items", "cancel_reason", "TEXT");
+    addColumnIfMissing("order_items", "prepared_at", "DATETIME");
+    addColumnIfMissing("order_items", "ready_at", "DATETIME");
+    addColumnIfMissing("order_items", "served_at", "DATETIME");
     seedDefaultAdmin();
     seedDefaultPOSData();
   });

@@ -2,7 +2,10 @@ const ordersService = require("./orders.service");
 
 async function createOrder(req, res) {
   try {
-    const order = await ordersService.createOrder(req.body);
+    const order = await ordersService.createOrder({
+      ...req.body,
+      server_id: req.body.server_id || req.user.id,
+    });
 
     res.status(201).json({
       success: true,
@@ -56,7 +59,7 @@ async function printTicket(req, res) {
     await ordersService.logPrint(
       req.params.id,
       req.user.id,
-      "kitchen_bar_ticket"
+      req.body.print_type || "kitchen_bar_ticket"
     );
 
     res.json({
@@ -91,6 +94,51 @@ async function printBill(req, res) {
     });
   }
 }
+
+async function updateOrderItemStatus(req, res) {
+  try {
+    const result = await ordersService.updateOrderItemStatus({
+      order_id: req.params.orderId,
+      item_id: req.params.itemId,
+      status: req.body.status,
+    });
+
+    res.json({
+      success: true,
+      message: "Order item status updated",
+      data: result,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}
+
+async function cancelOrder(req, res) {
+  try {
+    const result = await ordersService.cancelOrder({
+      order_id: req.params.id,
+      reason: req.body.reason,
+      cancelled_by: req.user.id,
+    });
+
+    await ordersService.logPrint(req.params.id, req.user.id, "order_cancelled");
+
+    res.json({
+      success: true,
+      message: "Order cancelled successfully",
+      data: result,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}
+
 async function payOrder(req, res) {
   try {
     const orderId = req.params.id;
@@ -120,6 +168,7 @@ async function payOrder(req, res) {
     });
   }
 }
+
 async function printPaidReceipt(req, res) {
   try {
     const result = await ordersService.printPaidReceipt(
@@ -142,12 +191,47 @@ async function printPaidReceipt(req, res) {
     });
   }
 }
+async function getKitchenQueue(req, res) {
+  try {
+    const items = await ordersService.getPreparationQueue("kitchen");
+
+    res.json({
+      success: true,
+      data: items,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}
+
+async function getBarQueue(req, res) {
+  try {
+    const items = await ordersService.getPreparationQueue("bar");
+
+    res.json({
+      success: true,
+      data: items,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}
 module.exports = {
   createOrder,
   getOrders,
   getOrderDetails,
   printTicket,
   printBill,
+  updateOrderItemStatus,
+  cancelOrder,
   payOrder,
   printPaidReceipt,
+  getKitchenQueue,
+  getBarQueue,
 };
