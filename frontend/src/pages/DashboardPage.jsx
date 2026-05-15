@@ -2,9 +2,10 @@ import { Link } from "react-router-dom";
 import AppHeader from "../components/layout/AppHeader";
 import { useEffect, useState } from "react";
 import { getMyDashboardStats } from "../api/reportsApi";
+import { getAuthUser } from "../utils/authSession";
 
 function DashboardPage() {
-  const user = JSON.parse(localStorage.getItem("zera_user") || "{}");
+  const user = getAuthUser();
 
   const [stats, setStats] = useState({
     my_sales_today: 0,

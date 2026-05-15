@@ -13,22 +13,40 @@ function CartPanel({
   );
 
   return (
-    <div className="bg-[#111827] border border-slate-800 rounded-3xl p-5 h-full flex flex-col">
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <h2 className="text-xl font-bold">Current Order</h2>
-          <p className="text-slate-400 text-sm">{cartItems.length} items</p>
+    <div className="bg-[#111827] border border-slate-800 rounded-3xl h-full flex flex-col overflow-hidden">
+      <div className="p-5 border-b border-slate-800">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-slate-500">
+              Waiter Order
+            </p>
+            <h2 className="text-xl font-black text-white">Current Bill</h2>
+          </div>
+
+          <button
+            onClick={onClear}
+            disabled={cartItems.length === 0}
+            className="text-red-300 bg-red-500/10 hover:bg-red-500/20 disabled:opacity-40 px-3 py-2 rounded-xl text-sm"
+          >
+            Clear
+          </button>
         </div>
 
-        <button
-          onClick={onClear}
-          className="text-red-300 bg-red-500/10 hover:bg-red-500/20 px-3 py-2 rounded-xl text-sm"
-        >
-          Clear
-        </button>
+        <p className="text-slate-400 text-sm mt-2">
+          {cartItems.length} item{cartItems.length !== 1 ? "s" : ""} added
+        </p>
       </div>
 
-      <div className="flex-1 space-y-3 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        {cartItems.length === 0 && (
+          <div className="h-full flex items-center justify-center text-center text-slate-500">
+            <div>
+              <p className="text-lg font-semibold">No items yet</p>
+              <p className="text-sm mt-1">Tap products to build the order.</p>
+            </div>
+          </div>
+        )}
+
         {cartItems.map((item) => (
           <div
             key={item.id}
@@ -36,7 +54,7 @@ function CartPanel({
           >
             <div className="flex justify-between gap-3">
               <div>
-                <h3 className="font-semibold">{item.name}</h3>
+                <h3 className="font-bold text-white">{item.name}</h3>
                 <p className="text-slate-400 text-sm">
                   UGX {Number(item.price).toLocaleString()}
                 </p>
@@ -44,7 +62,7 @@ function CartPanel({
 
               <button
                 onClick={() => onRemove(item.id)}
-                className="text-red-400 text-sm"
+                className="text-red-400 hover:text-red-300 text-sm"
               >
                 Remove
               </button>
@@ -54,64 +72,57 @@ function CartPanel({
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => onDecrease(item.id)}
-                  className="w-9 h-9 rounded-xl bg-slate-800 font-bold"
+                  className="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 font-bold"
                 >
                   -
                 </button>
 
-                <span className="w-8 text-center font-bold">
+                <span className="w-9 text-center font-black">
                   {item.quantity}
                 </span>
 
                 <button
                   onClick={() => onIncrease(item.id)}
-                  className="w-9 h-9 rounded-xl bg-slate-800 font-bold"
+                  className="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 font-bold"
                 >
                   +
                 </button>
               </div>
 
-              <p className="font-bold text-green-400">
+              <p className="font-black text-green-400">
                 UGX {(item.price * item.quantity).toLocaleString()}
               </p>
             </div>
           </div>
         ))}
-
-        {cartItems.length === 0 && (
-          <div className="text-center text-slate-500 py-12">
-            No items added yet.
-          </div>
-        )}
       </div>
 
-      <div className="border-t border-slate-800 mt-5 pt-5 space-y-4">
-        <div className="flex justify-between text-slate-300">
-          <span>Subtotal</span>
-          <span>UGX {subtotal.toLocaleString()}</span>
-        </div>
+      <div className="border-t border-slate-800 p-5 space-y-4">
+        <div className="bg-[#0D1117] rounded-2xl p-4 space-y-3">
+          <div className="flex justify-between text-slate-300">
+            <span>Subtotal</span>
+            <span>UGX {subtotal.toLocaleString()}</span>
+          </div>
 
-        <div className="flex justify-between text-2xl font-black">
-          <span>Total</span>
-          <span className="text-green-400">
-            UGX {subtotal.toLocaleString()}
-          </span>
+          <div className="flex justify-between text-2xl font-black text-white">
+            <span>Total</span>
+            <span className="text-green-400">
+              UGX {subtotal.toLocaleString()}
+            </span>
+          </div>
         </div>
 
         <button
           onClick={onSaveOrder}
           disabled={cartItems.length === 0 || savingOrder}
-          className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 rounded-2xl py-4 font-bold"
+          className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 rounded-2xl py-4 font-black text-lg"
         >
-          {savingOrder ? "Saving..." : "Save Order"}
+          {savingOrder ? "Sending..." : "Send Order to Counter"}
         </button>
-
-        <button
-          disabled={cartItems.length === 0}
-          className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 rounded-2xl py-4 font-bold"
-        >
-          Pay Now
-        </button>
+        <div className="bg-blue-500/10 border border-blue-500/30 rounded-2xl p-3 text-sm text-blue-200">
+          Save this order, then send the customer to the cashier/counter for
+          payment.
+        </div>
       </div>
     </div>
   );

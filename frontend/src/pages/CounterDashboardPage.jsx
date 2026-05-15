@@ -280,18 +280,29 @@ function CounterDashboardPage() {
                   ).toLocaleString()}
                 </p>
               </div>
-
               <div className="mt-5">
                 <label className="text-sm text-slate-400">Payment Method</label>
-                <select
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                  className="w-full mt-2 bg-[#0D1117] border border-slate-700 rounded-2xl px-4 py-3"
-                >
-                  <option value="cash">Cash</option>
-                  <option value="mobile_money">Mobile Money</option>
-                  <option value="card">Card</option>
-                </select>
+
+                <div className="grid grid-cols-3 gap-3 mt-2">
+                  {[
+                    { value: "cash", label: "Cash" },
+                    { value: "mobile_money", label: "MoMo" },
+                    { value: "card", label: "Card" },
+                  ].map((method) => (
+                    <button
+                      key={method.value}
+                      type="button"
+                      onClick={() => setPaymentMethod(method.value)}
+                      className={`rounded-2xl py-4 font-bold border transition ${
+                        paymentMethod === method.value
+                          ? "bg-green-500 border-green-400 text-white"
+                          : "bg-[#0D1117] border-slate-700 text-slate-300 hover:border-green-500"
+                      }`}
+                    >
+                      {method.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="mt-5">
@@ -301,7 +312,11 @@ function CounterDashboardPage() {
                 <input
                   value={reference}
                   onChange={(e) => setReference(e.target.value)}
-                  placeholder="Optional for cash"
+                  placeholder={
+                    paymentMethod === "cash"
+                      ? "Optional for cash"
+                      : "Enter MoMo/Card transaction reference"
+                  }
                   className="w-full mt-2 bg-[#0D1117] border border-slate-700 rounded-2xl px-4 py-3"
                 />
               </div>
@@ -325,7 +340,7 @@ function CounterDashboardPage() {
                   disabled={paying}
                   className="bg-green-500 hover:bg-green-600 disabled:opacity-50 rounded-2xl py-3 font-bold"
                 >
-                  {paying ? "Processing..." : "Confirm Payment"}
+                  {paying ? "Processing..." : "Receive & Close Order"}
                 </button>
               </div>
             </div>

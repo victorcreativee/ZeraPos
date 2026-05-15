@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import zeraLogo from "../../assets/brand/zera-logo.png";
+import { clearAuthSession, getAuthUser } from "../../utils/authSession";
 
 const BUSINESS_NAME = "Demo Bar & Restaurant";
 
@@ -7,11 +8,10 @@ function AppHeader({
   title = "Waiter Workspace",
   showBackToDashboard = false,
 }) {
-  const user = JSON.parse(localStorage.getItem("zera_user") || "{}");
+  const user = getAuthUser();
 
   const handleLogout = () => {
-    localStorage.removeItem("zera_token");
-    localStorage.removeItem("zera_user");
+    clearAuthSession();
     window.location.href = "/login";
   };
 

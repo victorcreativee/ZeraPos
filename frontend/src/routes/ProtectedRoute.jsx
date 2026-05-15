@@ -1,4 +1,5 @@
 import { Navigate } from "react-router-dom";
+import { getAuthToken, getAuthUser } from "../utils/authSession";
 
 function getRoleHome(role) {
   if (role === "admin") return "/admin";
@@ -8,9 +9,8 @@ function getRoleHome(role) {
 }
 
 function ProtectedRoute({ children, allowedRoles }) {
-  const token = localStorage.getItem("zera_token");
-  const user = JSON.parse(localStorage.getItem("zera_user") || "{}");
-
+  const token = getAuthToken();
+  const user = getAuthUser();
   if (!token) {
     return <Navigate to="/login" replace />;
   }

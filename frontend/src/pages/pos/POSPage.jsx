@@ -5,11 +5,14 @@ import CategoryTabs from "../../components/pos/CategoryTabs";
 import ProductGrid from "../../components/pos/ProductGrid";
 import CartPanel from "../../components/pos/CartPanel";
 import TableSelector from "../../components/pos/TableSelector";
-import { createOrder } from "../../api/ordersApi";
+import { createOrder, payOrder } from "../../api/ordersApi";
+import { printReceiptWindow } from "../../utils/printReceipt";
+import { buildPaidReceipt } from "../../utils/receiptTemplates";
 import AppHeader from "../../components/layout/AppHeader";
+import { getAuthUser } from "../../utils/authSession";
 
 function POSPage() {
-  const user = JSON.parse(localStorage.getItem("zera_user") || "{}");
+  const user = getAuthUser();
 
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
@@ -141,7 +144,45 @@ function POSPage() {
       setSavingOrder(false);
     }
   }
+  async function handlePayNow() {
+    try {
+      if (cartItems.length === 0) return;
 
+      setSavingOrder(true);
+      setError("");
+      setSuccessMessage("");
+
+      const orderData = {
+        table_id: selectedTable?.id || null,
+        server_id: user.id,
+        order_type: selectedTable ? "table" : "takeaway",
+        items: cartItems,
+      };
+
+      const orderResponse = await createOrder(orderData);
+      const createdOrder = orderResponse.data;
+
+      const paymentResponse = await payOrder(createdOrder.id, {
+        amount: createdOrder.total,
+        method: "cash",
+        reference: "",
+      });
+
+      const paidOrder = paymentResponse.data;
+      const receiptHtml = buildPaidReceipt(paidOrder, "cash");
+
+      printReceiptWindow("Paid Receipt", receiptHtml);
+
+      setSuccessMessage(`${createdOrder.order_number} paid successfully`);
+      setCartItems([]);
+
+      await loadPOSData(selectedCategory);
+    } catch (err) {
+      setError(err.response?.data?.message || "Payment failed");
+    } finally {
+      setSavingOrder(false);
+    }
+  }
   return (
     <div className="min-h-screen bg-[#0D1117] text-white">
       <AppHeader
@@ -197,6 +238,7 @@ function POSPage() {
             onRemove={handleRemove}
             onClear={handleClear}
             onSaveOrder={handleSaveOrder}
+            onPayNow={handlePayNow}
             savingOrder={savingOrder}
           />
         </aside>

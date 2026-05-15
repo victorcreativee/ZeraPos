@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { loginWithPassword, loginWithPin } from "../api/authApi";
+import { saveAuthSession } from "../utils/authSession";
 
 function LoginPage() {
   const navigate = useNavigate();
@@ -24,8 +25,7 @@ function LoginPage() {
   };
 
   const saveLogin = (data) => {
-    localStorage.setItem("zera_token", data.token);
-    localStorage.setItem("zera_user", JSON.stringify(data.user));
+    saveAuthSession(data);
 
     const role = data.user?.role;
 

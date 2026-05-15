@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { createUser, getUsers } from "../api/usersApi";
+import { getAuthUser } from "../utils/authSession";
 
 function UsersPage() {
-  const currentUser = JSON.parse(localStorage.getItem("zera_user") || "{}");
+  const currentUser = getAuthUser();
 
   const [users, setUsers] = useState([]);
   const [formData, setFormData] = useState({
