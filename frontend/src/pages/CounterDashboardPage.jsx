@@ -156,89 +156,103 @@ function CounterDashboardPage() {
           />
         </section>
 
-        <section className="grid xl:grid-cols-[1.2fr_0.8fr] gap-6">
-          <div className="bg-[#111827] border border-slate-800 rounded-3xl p-6">
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <h2 className="text-xl font-black">Open Bills</h2>
-                <p className="text-slate-400 text-sm">
-                  Orders waiting for payment
-                </p>
+        <section className="grid xl:grid-cols-[1.35fr_0.65fr] gap-6 min-h-[620px]">
+          <div className="bg-[#111827] border border-slate-800 rounded-3xl overflow-hidden">
+            <div className="p-6 border-b border-slate-800">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-black">Open Bills</h2>
+                  <p className="text-slate-400 text-sm mt-1">
+                    Confirm money received and close customer bills
+                  </p>
+                </div>
+
+                <span className="bg-yellow-500/10 text-yellow-300 px-3 py-1 rounded-full text-xs font-black">
+                  {filteredOpenOrders.length} Live
+                </span>
               </div>
 
-              <span className="bg-yellow-500/10 text-yellow-300 px-3 py-1 rounded-full text-xs">
-                Live
-              </span>
-            </div>
-
-            <div className="space-y-3">
               <input
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search table, order number, or waiter..."
-                className="w-full mb-4 bg-[#0D1117] border border-slate-700 rounded-2xl px-4 py-3 text-white outline-none focus:border-green-500"
+                className="w-full mt-5 bg-[#0D1117] border border-slate-700 rounded-2xl px-4 py-4 text-white outline-none focus:border-green-500"
               />
+            </div>
+
+            <div className="p-5 space-y-4 max-h-[520px] overflow-y-auto">
               {filteredOpenOrders.length === 0 ? (
                 <p className="text-slate-400">No open bills found.</p>
               ) : (
-                filteredOpenOrders.map((order) => (
-                  <div
-                    key={order.id}
-                    className="bg-[#0D1117] border border-slate-800 rounded-2xl p-4"
-                  >
-                    <div>
-                      <p className="font-black text-lg">
-                        {order.table_name || "Takeaway"}
-                      </p>
+                filteredOpenOrders.map((order) => {
+                  const isDelayed = Number(order.waiting_minutes || 0) > 20;
 
-                      <p className="text-sm text-slate-400">
-                        {order.order_number} • Waiter:{" "}
-                        {order.server_name || "N/A"}
-                      </p>
-
-                      <p
-                        className={`text-sm font-bold mt-2 ${
-                          Number(order.waiting_minutes || 0) > 20
-                            ? "text-red-400"
-                            : "text-yellow-300"
-                        }`}
-                      >
-                        Waiting for payment confirmation •{" "}
-                        {Number(order.waiting_minutes || 0)} min
-                      </p>
-                    </div>
-
-                    <div className="text-right">
-                      <p className="font-black text-yellow-300">
-                        UGX{" "}
-                        {Number(
-                          order.balance || order.total || 0
-                        ).toLocaleString()}
-                      </p>
-                      <p className="text-xs text-slate-500 capitalize">
-                        {order.status}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setSelectedOrder(order);
-                        setPaymentMethod("cash");
-                        setReference("");
-                      }}
-                      className="mt-4 w-full bg-green-500 hover:bg-green-600 text-white px-4 py-3 rounded-2xl font-black text-sm"
+                  return (
+                    <div
+                      key={order.id}
+                      className={`bg-[#0D1117] border rounded-3xl p-5 ${
+                        isDelayed ? "border-red-500/40" : "border-slate-800"
+                      }`}
                     >
-                      Confirm Money Received & Close Bill
-                    </button>
-                  </div>
-                ))
+                      <div className="flex items-start justify-between gap-5">
+                        <div className="min-w-0">
+                          <p className="font-black text-xl truncate">
+                            {order.table_name || "Takeaway"}
+                          </p>
+
+                          <p className="text-sm text-slate-400 mt-1">
+                            {order.order_number} • Waiter:{" "}
+                            {order.server_name || "N/A"}
+                          </p>
+
+                          <p
+                            className={`text-sm font-black mt-3 ${
+                              isDelayed ? "text-red-400" : "text-yellow-300"
+                            }`}
+                          >
+                            Waiting {Number(order.waiting_minutes || 0)} min
+                          </p>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <p className="font-black text-2xl text-yellow-300">
+                            UGX{" "}
+                            {Number(
+                              order.balance || order.total || 0
+                            ).toLocaleString()}
+                          </p>
+                          <p className="text-xs text-slate-500 capitalize mt-1">
+                            {order.status}
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setSelectedOrder(order);
+                          setPaymentMethod("cash");
+                          setReference("");
+                        }}
+                        className="mt-5 w-full bg-green-500 hover:bg-green-600 text-white px-4 py-4 rounded-2xl font-black"
+                      >
+                        Confirm Money Received & Close Bill
+                      </button>
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>
 
-          <div className="bg-[#111827] border border-slate-800 rounded-3xl p-6">
-            <h2 className="text-xl font-black mb-5">Recent Payments</h2>
+          <div className="bg-[#111827] border border-slate-800 rounded-3xl overflow-hidden">
+            <div className="p-6 border-b border-slate-800">
+              <h2 className="text-2xl font-black">Recent Payments</h2>
+              <p className="text-slate-400 text-sm mt-1">
+                Latest bills closed by cashier
+              </p>
+            </div>
 
-            <div className="space-y-3">
+            <div className="p-5 space-y-4 max-h-[520px] overflow-y-auto">
               {data.recent_payments.length === 0 ? (
                 <p className="text-slate-400">No payments received today.</p>
               ) : (
@@ -247,23 +261,23 @@ function CounterDashboardPage() {
                     key={payment.id}
                     className="bg-[#0D1117] border border-slate-800 rounded-2xl p-4"
                   >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-bold">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="font-black truncate">
                           {payment.table_name || "Takeaway"}
                         </p>
-                        <p className="text-sm text-slate-400">
+                        <p className="text-sm text-slate-400 mt-1">
                           {payment.order_number} • {payment.method}
                         </p>
                       </div>
 
-                      <p className="font-black text-green-400">
+                      <p className="font-black text-green-400 shrink-0">
                         UGX {Number(payment.amount || 0).toLocaleString()}
                       </p>
                     </div>
 
                     {payment.reference && (
-                      <p className="text-xs text-slate-500 mt-2">
+                      <p className="text-xs text-slate-500 mt-3 truncate">
                         Ref: {payment.reference}
                       </p>
                     )}

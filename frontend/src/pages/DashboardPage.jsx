@@ -142,70 +142,41 @@ function DashboardPage() {
             <p className="text-slate-500 mt-2">Logged-in staff account</p>
           </div>
         </section>
-        <section className="mt-6 grid md:grid-cols-3 gap-5">
-          <Link
-            to="/kitchen"
-            className="bg-[#111827] border border-slate-800 hover:border-orange-500 rounded-3xl p-6 flex items-center justify-between"
-          >
-            <div>
-              <h2 className="text-xl font-black">Kitchen Display</h2>
-              <p className="text-slate-400 mt-2">
-                View and prepare food orders
-              </p>
-            </div>
-            <span className="text-3xl text-orange-400">›</span>
-          </Link>
-
-          <Link
-            to="/bar"
-            className="bg-[#111827] border border-slate-800 hover:border-purple-500 rounded-3xl p-6 flex items-center justify-between"
-          >
-            <div>
-              <h2 className="text-xl font-black">Bar Display</h2>
-              <p className="text-slate-400 mt-2">
-                View and prepare drink orders
-              </p>
-            </div>
-            <span className="text-3xl text-purple-400">›</span>
-          </Link>
-
-          {(isAdmin || isManager) && (
-            <Link
-              to="/counter"
-              className="bg-[#111827] border border-slate-800 hover:border-green-500 rounded-3xl p-6 flex items-center justify-between"
-            >
-              <div>
-                <h2 className="text-xl font-black">Counter / Cashier</h2>
-                <p className="text-slate-400 mt-2">
-                  Receive payments and close bills
-                </p>
-              </div>
-              <span className="text-3xl text-green-400">›</span>
-            </Link>
-          )}
-        </section>
 
         <section className="grid lg:grid-cols-2 gap-6 mt-6">
-          <div className="bg-[#111827] border border-slate-800 rounded-3xl p-6">
-            <h2 className="text-xl font-black">Tables I Served Today</h2>
+          <div className="bg-[#111827] border border-slate-800 rounded-3xl overflow-hidden">
+            <div className="p-6 border-b border-slate-800 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-black">Tables I Served Today</h2>
+                <p className="text-slate-400 text-sm mt-1">
+                  Paid and completed tables from this shift
+                </p>
+              </div>
 
-            <div className="mt-5 space-y-3">
+              <span className="bg-slate-800 text-slate-200 px-3 py-1 rounded-full text-sm font-black">
+                {stats.tables_served?.length || 0}
+              </span>
+            </div>
+
+            <div className="p-4 space-y-3 max-h-[460px] overflow-y-auto">
               {stats.tables_served?.length === 0 ? (
-                <p className="text-slate-400">No tables served yet today.</p>
+                <p className="text-slate-400 p-3">
+                  No tables served yet today.
+                </p>
               ) : (
                 stats.tables_served.map((table) => (
                   <div
                     key={`${table.order_id}-${table.id}`}
                     className="flex items-center justify-between bg-[#0D1117] border border-slate-800 rounded-2xl p-4"
                   >
-                    <div>
-                      <p className="font-bold">{table.name}</p>
+                    <div className="min-w-0">
+                      <p className="font-black truncate">{table.name}</p>
                       <p className="text-sm text-slate-400">
                         Order #{table.order_id}
                       </p>
                     </div>
 
-                    <div className="text-right">
+                    <div className="text-right shrink-0">
                       <p className="font-black">
                         UGX {Number(table.total || 0).toLocaleString()}
                       </p>
@@ -219,15 +190,15 @@ function DashboardPage() {
             </div>
           </div>
 
-          <div className="bg-[#111827] border border-slate-800 rounded-3xl p-6">
-            <div className="flex items-center justify-between gap-4">
+          <div className="bg-[#111827] border border-slate-800 rounded-3xl overflow-hidden">
+            <div className="p-6 border-b border-slate-800 flex items-center justify-between gap-4">
               <div>
                 <h2 className="text-xl font-black">
                   Payment Proof & Recent Orders
                 </h2>
                 <p className="text-slate-400 text-sm mt-1">
-                  Use this section to confirm whether cashier has received
-                  payment.
+                  Confirm cashier payment status without scrolling the whole
+                  dashboard.
                 </p>
               </div>
 
@@ -239,9 +210,9 @@ function DashboardPage() {
               </button>
             </div>
 
-            <div className="mt-5 space-y-3">
+            <div className="p-4 space-y-3 max-h-[460px] overflow-y-auto">
               {stats.recent_orders?.length === 0 ? (
-                <p className="text-slate-400">No recent orders found.</p>
+                <p className="text-slate-400 p-3">No recent orders found.</p>
               ) : (
                 stats.recent_orders.map((order) => {
                   const isPaid = order.status === "paid";
@@ -260,26 +231,26 @@ function DashboardPage() {
                       }`}
                     >
                       <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <p className="font-black text-lg">
+                        <div className="min-w-0">
+                          <p className="font-black text-lg truncate">
                             {order.table_name || "Takeaway"}
                           </p>
                           <p className="text-sm text-slate-300">
                             {order.order_number}
                           </p>
+
                           {!isPaid && (
                             <p
                               className={`text-sm mt-2 font-bold ${
                                 isDelayed ? "text-red-400" : "text-yellow-300"
                               }`}
                             >
-                              Waiting for cashier confirmation •{" "}
-                              {Number(order.waiting_minutes || 0)} min
+                              Waiting • {Number(order.waiting_minutes || 0)} min
                             </p>
                           )}
                         </div>
 
-                        <div className="text-right">
+                        <div className="text-right shrink-0">
                           <p className="font-black">
                             UGX {Number(order.total || 0).toLocaleString()}
                           </p>
@@ -294,18 +265,18 @@ function DashboardPage() {
                             }`}
                           >
                             {isPaid
-                              ? "Paid by cashier"
+                              ? "Paid"
                               : isDelayed
-                              ? "Delayed payment"
-                              : "Awaiting payment"}
+                              ? "Delayed"
+                              : "Awaiting"}
                           </span>
                         </div>
                       </div>
 
-                      {isPaid ? (
+                      {isPaid && (
                         <div className="mt-4 grid sm:grid-cols-2 gap-3 text-sm">
                           <ProofLine
-                            label="Payment Method"
+                            label="Method"
                             value={order.payment_method || "Recorded"}
                           />
 
@@ -315,32 +286,20 @@ function DashboardPage() {
                           />
 
                           <ProofLine
-                            label="Amount Received"
+                            label="Amount"
                             value={`UGX ${Number(
                               order.payment_amount || order.total || 0
                             ).toLocaleString()}`}
                           />
 
                           <ProofLine
-                            label="Payment Time"
+                            label="Paid At"
                             value={
                               order.payment_time
                                 ? new Date(order.payment_time).toLocaleString()
                                 : "Paid"
                             }
                           />
-
-                          {order.payment_reference && (
-                            <ProofLine
-                              label="Reference"
-                              value={order.payment_reference}
-                            />
-                          )}
-                        </div>
-                      ) : (
-                        <div className="mt-4 bg-black/20 border border-white/10 rounded-xl p-3 text-sm text-yellow-100">
-                          This bill has been sent to counter but cashier has not
-                          yet recorded payment. Do not mark it as paid manually.
                         </div>
                       )}
                     </div>
@@ -354,27 +313,17 @@ function DashboardPage() {
         {(isAdmin || isManager) && (
           <section className="mt-6 grid md:grid-cols-3 gap-5">
             <Link
-              to="/users"
-              className="bg-[#111827] border border-slate-800 hover:border-purple-500 rounded-3xl p-6 flex items-center justify-between"
+              to="/counter"
+              className="bg-[#111827] border border-slate-800 hover:border-green-500 rounded-3xl p-6 flex items-center justify-between"
             >
               <div>
-                <h2 className="text-xl font-black">User Management</h2>
-                <p className="text-slate-400 mt-2">Manage staff and roles</p>
+                <h2 className="text-xl font-black">Counter / Cashier</h2>
+                <p className="text-slate-400 mt-2">
+                  Receive payments and close bills
+                </p>
               </div>
-              <span className="text-3xl text-slate-400">›</span>
+              <span className="text-3xl text-green-400">›</span>
             </Link>
-
-            <div className="bg-[#111827] border border-slate-800 rounded-3xl p-6">
-              <h2 className="text-xl font-black">Inventory</h2>
-              <p className="text-slate-400 mt-2">
-                Stock management coming next
-              </p>
-            </div>
-
-            <div className="bg-[#111827] border border-slate-800 rounded-3xl p-6">
-              <h2 className="text-xl font-black">Reports</h2>
-              <p className="text-slate-400 mt-2">Manager reports coming next</p>
-            </div>
           </section>
         )}
       </main>
