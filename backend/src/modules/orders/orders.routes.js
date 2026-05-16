@@ -17,7 +17,7 @@ router.post("/:id/print-bill", requireAuth, ordersController.printBill);
 router.patch(
   "/:orderId/items/:itemId/status",
   requireAuth,
-  allowRoles("admin", "manager", "server", "cashier"),
+  allowRoles("admin", "manager", "kitchen", "bar"),
   ordersController.updateOrderItemStatus
 );
 
@@ -45,14 +45,13 @@ router.post(
 router.get(
   "/kitchen/queue",
   requireAuth,
-  allowRoles("admin", "manager", "server", "cashier"),
+  allowRoles("admin", "manager", "kitchen"),
   ordersController.getKitchenQueue
 );
-
 router.get(
   "/bar/queue",
   requireAuth,
-  allowRoles("admin", "manager", "server", "cashier"),
+  allowRoles("admin", "manager", "bar"),
   ordersController.getBarQueue
 );
 module.exports = router;

@@ -89,9 +89,7 @@ function App() {
       <Route
         path="/kitchen"
         element={
-          <ProtectedRoute
-            allowedRoles={["admin", "manager", "server", "cashier"]}
-          >
+          <ProtectedRoute allowedRoles={["admin", "manager", "kitchen"]}>
             <KitchenDisplayPage />
           </ProtectedRoute>
         }
@@ -99,15 +97,66 @@ function App() {
       <Route
         path="/bar"
         element={
-          <ProtectedRoute
-            allowedRoles={["admin", "manager", "server", "cashier"]}
-          >
+          <ProtectedRoute allowedRoles={["admin", "manager", "bar"]}>
             <BarDisplayPage />
           </ProtectedRoute>
         }
       />
       <Route
         path="/admin/setup"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <SystemAdminSetupPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/branches"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <SystemAdminSetupPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/tables"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <SystemAdminSetupPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/menu"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <SystemAdminSetupPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/payments"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <SystemAdminSetupPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/receipts"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <SystemAdminSetupPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/backup-sync"
         element={
           <ProtectedRoute allowedRoles={["admin"]}>
             <SystemAdminSetupPage />

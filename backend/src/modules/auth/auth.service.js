@@ -55,13 +55,21 @@ function loginWithPassword(email, password) {
 
 function loginWithPin(pin) {
   return new Promise((resolve, reject) => {
-    db.all("SELECT * FROM users WHERE is_active = 1", async (err, users) => {
+    db.all("SELECT * FROM users", async (err, users) => {
       if (err) return reject(err);
 
       for (const user of users) {
         const isMatch = await bcrypt.compare(pin, user.pin_hash || "");
 
         if (isMatch) {
+          if (Number(user.is_active) !== 1) {
+            return reject(
+              new Error(
+                "This user account is inactive. Please contact the system admin."
+              )
+            );
+          }
+
           const token = generateToken(user);
 
           return resolve({

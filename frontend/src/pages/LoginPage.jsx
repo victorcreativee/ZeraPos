@@ -35,6 +35,10 @@ function LoginPage() {
       navigate("/manager");
     } else if (role === "cashier") {
       navigate("/counter");
+    } else if (role === "kitchen") {
+      navigate("/kitchen");
+    } else if (role === "bar") {
+      navigate("/bar");
     } else {
       navigate("/dashboard");
     }

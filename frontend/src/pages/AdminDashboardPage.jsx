@@ -6,21 +6,21 @@ const setupCards = [
     title: "Restaurant / Bar Profile",
     description:
       "Set business name, type, logo, contact, address, and currency.",
-    path: "/admin/setup",
+    path: "/admin/setup?module=profile",
     tag: "Core Setup",
   },
   {
     title: "Branches",
     description:
       "Manage main branch, bar branch, lounge, or multiple locations.",
-    path: "/admin/branches",
+    path: "/admin/setup?module=branches",
     tag: "Business",
   },
   {
     title: "Tables & Areas",
     description:
       "Create halls, VIP areas, terrace, bar counter, and table layout.",
-    path: "/admin/tables",
+    path: "/admin/setup?module=tables",
     tag: "Floor Setup",
   },
   {
@@ -33,27 +33,27 @@ const setupCards = [
     title: "Menu Setup",
     description:
       "Configure food, drinks, categories, prices, and availability.",
-    path: "/admin/menu",
+    path: "/admin/setup?module=menu",
     tag: "Operations",
   },
   {
     title: "Payment Settings",
     description: "Enable cash, mobile money, card, split payments, and tips.",
-    path: "/admin/payments",
+    path: "/admin/setup?module=payments",
     tag: "Finance",
   },
   {
     title: "Receipt Settings",
     description:
       "Customize receipt logo, footer, tax number, and printer format.",
-    path: "/admin/receipts",
+    path: "/admin/setup?module=receipts",
     tag: "Printing",
   },
   {
     title: "Backup & Sync",
     description:
       "Manage offline database backup, cloud sync, and device status.",
-    path: "/admin/backup-sync",
+    path: "/admin/setup?module=backup",
     tag: "System",
   },
 ];

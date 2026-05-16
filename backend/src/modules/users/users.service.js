@@ -5,7 +5,14 @@ function createUser(data) {
   return new Promise(async (resolve, reject) => {
     const { name, email, phone, role, pin, password } = data;
 
-    const allowedRoles = ["admin", "manager", "cashier", "server"];
+    const allowedRoles = [
+      "admin",
+      "manager",
+      "cashier",
+      "server",
+      "kitchen",
+      "bar",
+    ];
 
     if (!allowedRoles.includes(role)) {
       return reject(new Error("Invalid user role"));
@@ -57,6 +64,18 @@ function getAllUsers() {
 function updateUser(id, data) {
   return new Promise((resolve, reject) => {
     const { name, email, phone, role, is_active } = data;
+    const allowedRoles = [
+      "admin",
+      "manager",
+      "cashier",
+      "server",
+      "kitchen",
+      "bar",
+    ];
+
+    if (!allowedRoles.includes(role)) {
+      return reject(new Error("Invalid user role"));
+    }
 
     db.run(
       `

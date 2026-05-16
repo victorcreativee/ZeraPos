@@ -9,6 +9,14 @@ function AppHeader({
   showBackToDashboard = false,
 }) {
   const user = getAuthUser();
+  function getDashboardPath() {
+    if (user.role === "admin") return "/admin";
+    if (user.role === "manager") return "/manager";
+    if (user.role === "cashier") return "/counter";
+    if (user.role === "kitchen") return "/kitchen";
+    if (user.role === "bar") return "/bar";
+    return "/dashboard";
+  }
 
   const handleLogout = () => {
     clearAuthSession();
@@ -49,7 +57,7 @@ function AppHeader({
 
           {showBackToDashboard && (
             <Link
-              to="/dashboard"
+              to={getDashboardPath()}
               className="bg-slate-800 hover:bg-slate-700 px-8 py-5 rounded-2xl text-xl font-black"
             >
               Dashboard

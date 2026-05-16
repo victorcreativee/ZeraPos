@@ -5,6 +5,8 @@ function getRoleHome(role) {
   if (role === "admin") return "/admin";
   if (role === "manager") return "/manager";
   if (role === "cashier") return "/counter";
+  if (role === "kitchen") return "/kitchen";
+  if (role === "bar") return "/bar";
   return "/dashboard";
 }
 
