@@ -6,7 +6,7 @@ const setupCards = [
     title: "Restaurant / Bar Profile",
     description:
       "Set business name, type, logo, contact, address, and currency.",
-    path: "/admin/business-profile",
+    path: "/admin/setup",
     tag: "Core Setup",
   },
   {
@@ -94,12 +94,12 @@ function AdminDashboardPage() {
               </p>
             </div>
 
-            <Link
+            {/* <Link
               to="/manager"
               className="bg-[#111827] border border-slate-800 hover:border-purple-500 rounded-2xl px-5 py-3 text-sm font-bold"
             >
               Back to Manager
-            </Link>
+            </Link> */}
           </div>
 
           <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-5">

@@ -11,6 +11,7 @@ import AdminDashboardPage from "./pages/AdminDashboardPage";
 import CounterDashboardPage from "./pages/CounterDashboardPage";
 import KitchenDisplayPage from "./pages/kitchen/KitchenDisplayPage";
 import BarDisplayPage from "./pages/bar/BarDisplayPage";
+import SystemAdminSetupPage from "./pages/SystemAdminSetupPage";
 
 function App() {
   return (
@@ -102,6 +103,14 @@ function App() {
             allowedRoles={["admin", "manager", "server", "cashier"]}
           >
             <BarDisplayPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/setup"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <SystemAdminSetupPage />
           </ProtectedRoute>
         }
       />

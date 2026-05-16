@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createUser, getUsers } from "../api/usersApi";
-import { getAuthUser } from "../utils/authSession";
+import { clearAuthSession, getAuthUser } from "../utils/authSession";
 
 function UsersPage() {
   const currentUser = getAuthUser();
@@ -73,10 +73,8 @@ function UsersPage() {
       setLoading(false);
     }
   }
-
   function handleLogout() {
-    localStorage.removeItem("zera_token");
-    localStorage.removeItem("zera_user");
+    clearAuthSession();
     window.location.href = "/login";
   }
 
