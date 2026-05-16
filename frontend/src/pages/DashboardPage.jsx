@@ -220,42 +220,132 @@ function DashboardPage() {
           </div>
 
           <div className="bg-[#111827] border border-slate-800 rounded-3xl p-6">
-            <h2 className="text-xl font-black">My Recent Orders</h2>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-black">
+                  Payment Proof & Recent Orders
+                </h2>
+                <p className="text-slate-400 text-sm mt-1">
+                  Use this section to confirm whether cashier has received
+                  payment.
+                </p>
+              </div>
+
+              <button
+                onClick={() => window.location.reload()}
+                className="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-xl font-bold"
+              >
+                Refresh
+              </button>
+            </div>
 
             <div className="mt-5 space-y-3">
               {stats.recent_orders?.length === 0 ? (
                 <p className="text-slate-400">No recent orders found.</p>
               ) : (
-                stats.recent_orders.map((order) => (
-                  <div
-                    key={order.id}
-                    className="flex items-center justify-between bg-[#0D1117] border border-slate-800 rounded-2xl p-4"
-                  >
-                    <div>
-                      <p className="font-bold">
-                        {order.table_name || "Takeaway"}
-                      </p>
-                      <p className="text-sm text-slate-400">
-                        {order.order_number}
-                      </p>
-                    </div>
+                stats.recent_orders.map((order) => {
+                  const isPaid = order.status === "paid";
+                  const isDelayed =
+                    !isPaid && Number(order.waiting_minutes || 0) > 20;
 
-                    <div className="text-right">
-                      <p className="font-black">
-                        UGX {Number(order.total || 0).toLocaleString()}
-                      </p>
-                      <span
-                        className={`text-xs capitalize ${
-                          order.status === "paid"
-                            ? "text-green-400"
-                            : "text-yellow-400"
-                        }`}
-                      >
-                        {order.status}
-                      </span>
+                  return (
+                    <div
+                      key={order.id}
+                      className={`border rounded-2xl p-4 ${
+                        isPaid
+                          ? "bg-green-500/10 border-green-500/30"
+                          : isDelayed
+                          ? "bg-red-500/10 border-red-500/30"
+                          : "bg-yellow-500/10 border-yellow-500/30"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="font-black text-lg">
+                            {order.table_name || "Takeaway"}
+                          </p>
+                          <p className="text-sm text-slate-300">
+                            {order.order_number}
+                          </p>
+                          {!isPaid && (
+                            <p
+                              className={`text-sm mt-2 font-bold ${
+                                isDelayed ? "text-red-400" : "text-yellow-300"
+                              }`}
+                            >
+                              Waiting for cashier confirmation •{" "}
+                              {Number(order.waiting_minutes || 0)} min
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="text-right">
+                          <p className="font-black">
+                            UGX {Number(order.total || 0).toLocaleString()}
+                          </p>
+
+                          <span
+                            className={`inline-block mt-1 px-3 py-1 rounded-full text-xs font-black uppercase ${
+                              isPaid
+                                ? "bg-green-500 text-white"
+                                : isDelayed
+                                ? "bg-red-500 text-white"
+                                : "bg-yellow-500 text-black"
+                            }`}
+                          >
+                            {isPaid
+                              ? "Paid by cashier"
+                              : isDelayed
+                              ? "Delayed payment"
+                              : "Awaiting payment"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {isPaid ? (
+                        <div className="mt-4 grid sm:grid-cols-2 gap-3 text-sm">
+                          <ProofLine
+                            label="Payment Method"
+                            value={order.payment_method || "Recorded"}
+                          />
+
+                          <ProofLine
+                            label="Cashier"
+                            value={order.cashier_name || "Cashier recorded"}
+                          />
+
+                          <ProofLine
+                            label="Amount Received"
+                            value={`UGX ${Number(
+                              order.payment_amount || order.total || 0
+                            ).toLocaleString()}`}
+                          />
+
+                          <ProofLine
+                            label="Payment Time"
+                            value={
+                              order.payment_time
+                                ? new Date(order.payment_time).toLocaleString()
+                                : "Paid"
+                            }
+                          />
+
+                          {order.payment_reference && (
+                            <ProofLine
+                              label="Reference"
+                              value={order.payment_reference}
+                            />
+                          )}
+                        </div>
+                      ) : (
+                        <div className="mt-4 bg-black/20 border border-white/10 rounded-xl p-3 text-sm text-yellow-100">
+                          This bill has been sent to counter but cashier has not
+                          yet recorded payment. Do not mark it as paid manually.
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
@@ -298,6 +388,14 @@ function StatCard({ title, value, note, accent = "text-white" }) {
       <p className="text-slate-400 text-lg">{title}</p>
       <h2 className={`text-4xl font-black mt-3 ${accent}`}>{value}</h2>
       <p className="text-slate-500 mt-2">{note}</p>
+    </div>
+  );
+}
+function ProofLine({ label, value }) {
+  return (
+    <div className="bg-black/20 border border-white/10 rounded-xl p-3">
+      <p className="text-slate-400 text-xs">{label}</p>
+      <p className="font-black mt-1">{value}</p>
     </div>
   );
 }

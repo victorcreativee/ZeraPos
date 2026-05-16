@@ -117,11 +117,11 @@ function CartPanel({
           disabled={cartItems.length === 0 || savingOrder}
           className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 rounded-2xl py-4 font-black text-lg"
         >
-          {savingOrder ? "Sending..." : "Send Order to Counter"}
+          {savingOrder ? "Sending to Counter..." : "Send Bill to Counter"}
         </button>
         <div className="bg-blue-500/10 border border-blue-500/30 rounded-2xl p-3 text-sm text-blue-200">
-          Save this order, then send the customer to the cashier/counter for
-          payment.
+          After sending, the bill appears at the cashier counter. Payment proof
+          will show on your waiter dashboard after cashier receives payment.
         </div>
       </div>
     </div>

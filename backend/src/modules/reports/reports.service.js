@@ -111,13 +111,28 @@ function getMyDashboardStats(userId) {
                     orders.id,
                     orders.order_number,
                     orders.total,
+                    orders.balance,
                     orders.status,
                     orders.created_at,
                     orders.closed_at,
-                    restaurant_tables.name AS table_name
+                
+                    ROUND(
+                      (julianday('now') - julianday(orders.created_at)) * 24 * 60
+                    ) AS waiting_minutes,
+                
+                    restaurant_tables.name AS table_name,
+                    payments.method AS payment_method,
+                    payments.amount AS payment_amount,
+                    payments.reference AS payment_reference,
+                    payments.created_at AS payment_time,
+                    cashier.name AS cashier_name
                   FROM orders
                   LEFT JOIN restaurant_tables 
                     ON orders.table_id = restaurant_tables.id
+                  LEFT JOIN payments
+                    ON payments.order_id = orders.id
+                  LEFT JOIN users AS cashier
+                    ON payments.received_by = cashier.id
                   WHERE orders.server_id = ?
                   AND orders.created_at >= ?
                   AND orders.created_at < ?
@@ -414,16 +429,21 @@ function getCounterDashboardStats(userId) {
 
             db.all(
               `
-              SELECT
-                orders.id,
-                orders.order_number,
-                orders.total,
-                orders.balance,
-                orders.status,
-                orders.created_at,
-                restaurant_tables.name AS table_name,
-                users.name AS server_name
-              FROM orders
+            SELECT
+              orders.id,
+              orders.order_number,
+              orders.total,
+              orders.balance,
+              orders.status,
+              orders.created_at,
+
+              ROUND(
+                (julianday('now') - julianday(orders.created_at)) * 24 * 60
+              ) AS waiting_minutes,
+
+              restaurant_tables.name AS table_name,
+              users.name AS server_name
+            FROM orders
               LEFT JOIN restaurant_tables ON orders.table_id = restaurant_tables.id
               LEFT JOIN users ON orders.server_id = users.id
               WHERE orders.status IN ('open', 'sent', 'bill_printed')

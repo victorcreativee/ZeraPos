@@ -24,6 +24,7 @@ function POSPage() {
   const [error, setError] = useState("");
   const [savingOrder, setSavingOrder] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const [lastSentOrder, setLastSentOrder] = useState(null);
 
   async function loadPOSData(categoryId = null) {
     try {
@@ -124,9 +125,14 @@ function POSPage() {
       };
 
       const response = await createOrder(orderData);
+      setLastSentOrder({
+        order_number: response.order_number,
+        total: response.total,
+        table_name: selectedTable?.name || "Takeaway",
+      });
 
       setSuccessMessage(
-        `Order ${response.order_number} sent to counter successfully`
+        `${response.order_number} has been sent to counter. Customer should pay cashier only.`
       );
 
       setTimeout(() => {
@@ -176,8 +182,44 @@ function POSPage() {
           )}
 
           {successMessage && (
-            <div className="bg-green-500/10 border border-green-500 text-green-300 px-4 py-3 rounded-xl mb-5">
-              {successMessage}
+            <div className="bg-green-500/10 border border-green-500 text-green-300 px-5 py-4 rounded-2xl mb-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="font-black text-lg">Order Sent to Counter</p>
+                  <p className="text-sm mt-1">{successMessage}</p>
+
+                  {lastSentOrder && (
+                    <div className="mt-3 grid sm:grid-cols-3 gap-3 text-sm">
+                      <div className="bg-black/20 rounded-xl p-3">
+                        <p className="text-green-200/70">Order</p>
+                        <p className="font-black">
+                          {lastSentOrder.order_number}
+                        </p>
+                      </div>
+
+                      <div className="bg-black/20 rounded-xl p-3">
+                        <p className="text-green-200/70">Table</p>
+                        <p className="font-black">{lastSentOrder.table_name}</p>
+                      </div>
+
+                      <div className="bg-black/20 rounded-xl p-3">
+                        <p className="text-green-200/70">Amount</p>
+                        <p className="font-black">
+                          UGX{" "}
+                          {Number(lastSentOrder.total || 0).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <Link
+                  to="/dashboard"
+                  className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-xl font-bold whitespace-nowrap"
+                >
+                  View Proof
+                </Link>
+              </div>
             </div>
           )}
 

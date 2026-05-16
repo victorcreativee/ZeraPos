@@ -187,12 +187,24 @@ function CounterDashboardPage() {
                     className="bg-[#0D1117] border border-slate-800 rounded-2xl p-4"
                   >
                     <div>
-                      <p className="font-black">
+                      <p className="font-black text-lg">
                         {order.table_name || "Takeaway"}
                       </p>
+
                       <p className="text-sm text-slate-400">
                         {order.order_number} • Waiter:{" "}
                         {order.server_name || "N/A"}
+                      </p>
+
+                      <p
+                        className={`text-sm font-bold mt-2 ${
+                          Number(order.waiting_minutes || 0) > 20
+                            ? "text-red-400"
+                            : "text-yellow-300"
+                        }`}
+                      >
+                        Waiting for payment confirmation •{" "}
+                        {Number(order.waiting_minutes || 0)} min
                       </p>
                     </div>
 
@@ -213,9 +225,9 @@ function CounterDashboardPage() {
                         setPaymentMethod("cash");
                         setReference("");
                       }}
-                      className="mt-3 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-xl font-bold text-sm"
+                      className="mt-4 w-full bg-green-500 hover:bg-green-600 text-white px-4 py-3 rounded-2xl font-black text-sm"
                     >
-                      Receive Payment
+                      Confirm Money Received & Close Bill
                     </button>
                   </div>
                 ))
