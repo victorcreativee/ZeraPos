@@ -41,8 +41,23 @@ async function createTable(req, res) {
     });
   }
 }
+async function getTableActiveBill(req, res) {
+  try {
+    const bill = await tablesService.getTableActiveBill(req.params.id);
 
+    res.json({
+      success: true,
+      data: bill,
+    });
+  } catch (error) {
+    res.status(404).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}
 module.exports = {
   getTables,
   createTable,
+  getTableActiveBill,
 };

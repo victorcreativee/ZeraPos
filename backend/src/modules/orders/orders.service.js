@@ -55,6 +55,37 @@ function validateItems(items) {
     }
   });
 }
+function refreshTableStatus(tableId) {
+  if (!tableId) return;
+
+  db.get(
+    `
+    SELECT COUNT(*) AS open_count
+    FROM orders
+    WHERE table_id = ?
+    AND status NOT IN ('paid', 'cancelled')
+    `,
+    [tableId],
+    (err, row) => {
+      if (err) {
+        console.log("Failed to refresh table status", err.message);
+        return;
+      }
+
+      const nextStatus =
+        Number(row?.open_count || 0) > 0 ? "occupied" : "available";
+
+      db.run(
+        `
+        UPDATE restaurant_tables
+        SET status = ?
+        WHERE id = ?
+        `,
+        [nextStatus, tableId]
+      );
+    }
+  );
+}
 
 async function createOrder(data) {
   const orderNumber = await generateOrderNumber();
@@ -386,16 +417,7 @@ function cancelOrder({ order_id, reason, cancelled_by }) {
               [ITEM_STATUSES.CANCELLED, order_id]
             );
 
-            if (order.table_id) {
-              db.run(
-                `
-                UPDATE restaurant_tables
-                SET status = 'available'
-                WHERE id = ?
-                `,
-                [order.table_id]
-              );
-            }
+            refreshTableStatus(order.table_id);
 
             resolve({
               success: true,
@@ -490,16 +512,7 @@ function payOrder(data) {
                   [ITEM_STATUSES.SERVED, order_id, ITEM_STATUSES.CANCELLED]
                 );
 
-                if (order.table_id) {
-                  db.run(
-                    `
-                    UPDATE restaurant_tables
-                    SET status = 'available'
-                    WHERE id = ?
-                    `,
-                    [order.table_id]
-                  );
-                }
+                refreshTableStatus(order.table_id);
 
                 resolve({
                   success: true,
@@ -585,7 +598,219 @@ function getPreparationQueue(sendTo) {
     );
   });
 }
+function getCombinedTableBill(tableId) {
+  return new Promise((resolve, reject) => {
+    db.get(
+      `
+      SELECT *
+      FROM restaurant_tables
+      WHERE id = ?
+      `,
+      [tableId],
+      (tableErr, table) => {
+        if (tableErr) return reject(tableErr);
+        if (!table) return reject(new Error("Table not found"));
 
+        db.all(
+          `
+          SELECT
+            orders.*,
+            users.name AS server_name,
+            restaurant_tables.name AS table_name
+          FROM orders
+          LEFT JOIN users ON orders.server_id = users.id
+          LEFT JOIN restaurant_tables ON orders.table_id = restaurant_tables.id
+          WHERE orders.table_id = ?
+          AND orders.status NOT IN ('paid', 'cancelled')
+          ORDER BY orders.created_at ASC
+          `,
+          [tableId],
+          (ordersErr, orders) => {
+            if (ordersErr) return reject(ordersErr);
+
+            if (orders.length === 0) {
+              return resolve({
+                table,
+                orders: [],
+                items: [],
+                total: 0,
+              });
+            }
+
+            const orderIds = orders.map((order) => order.id);
+            const placeholders = orderIds.map(() => "?").join(",");
+
+            db.all(
+              `
+              SELECT *
+              FROM order_items
+              WHERE order_id IN (${placeholders})
+              AND status != 'cancelled'
+              ORDER BY order_id ASC, product_name ASC
+              `,
+              orderIds,
+              (itemsErr, items) => {
+                if (itemsErr) return reject(itemsErr);
+
+                resolve({
+                  table,
+                  orders,
+                  items,
+                  total: orders.reduce(
+                    (sum, order) =>
+                      sum + Number(order.balance || order.total || 0),
+                    0
+                  ),
+                });
+              }
+            );
+          }
+        );
+      }
+    );
+  });
+}
+
+function markCombinedTableBillPrinted(tableId) {
+  return new Promise((resolve, reject) => {
+    db.run(
+      `
+      UPDATE orders
+      SET status = ?
+      WHERE table_id = ?
+      AND status NOT IN ('paid', 'cancelled')
+      `,
+      [ORDER_STATUSES.BILL_PRINTED, tableId],
+      function (err) {
+        if (err) return reject(err);
+
+        resolve({
+          success: true,
+          table_id: tableId,
+          updated_orders: this.changes,
+        });
+      }
+    );
+  });
+}
+function payTableOrders({ table_id, method, reference = null, received_by }) {
+  return new Promise((resolve, reject) => {
+    if (!table_id) return reject(new Error("Table ID is required"));
+    if (!method) return reject(new Error("Payment method is required"));
+
+    db.all(
+      `
+      SELECT *
+      FROM orders
+      WHERE table_id = ?
+      AND status NOT IN ('paid', 'cancelled')
+      ORDER BY created_at ASC
+      `,
+      [table_id],
+      (err, orders) => {
+        if (err) return reject(err);
+
+        if (!orders.length) {
+          return reject(new Error("No unpaid orders found for this table"));
+        }
+
+        const totalAmount = orders.reduce(
+          (sum, order) => sum + Number(order.balance || order.total || 0),
+          0
+        );
+
+        db.serialize(() => {
+          db.run("BEGIN TRANSACTION");
+
+          const paymentStmt = db.prepare(`
+            INSERT INTO payments
+            (
+              order_id,
+              method,
+              amount,
+              reference,
+              received_by
+            )
+            VALUES (?, ?, ?, ?, ?)
+          `);
+
+          const orderStmt = db.prepare(`
+            UPDATE orders
+            SET
+              paid_amount = ?,
+              balance = 0,
+              status = ?,
+              closed_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+          `);
+
+          const itemStmt = db.prepare(`
+            UPDATE order_items
+            SET status = ?
+            WHERE order_id = ?
+            AND status != ?
+          `);
+
+          try {
+            orders.forEach((order) => {
+              const amount = Number(order.balance || order.total || 0);
+
+              paymentStmt.run([
+                order.id,
+                method,
+                amount,
+                reference,
+                received_by,
+              ]);
+
+              orderStmt.run([amount, ORDER_STATUSES.PAID, order.id]);
+
+              itemStmt.run([
+                ITEM_STATUSES.SERVED,
+                order.id,
+                ITEM_STATUSES.CANCELLED,
+              ]);
+            });
+
+            paymentStmt.finalize();
+            orderStmt.finalize();
+            itemStmt.finalize();
+
+            db.run(
+              `
+              UPDATE restaurant_tables
+              SET status = 'available'
+              WHERE id = ?
+              `,
+              [table_id],
+              (tableErr) => {
+                if (tableErr) {
+                  db.run("ROLLBACK");
+                  return reject(tableErr);
+                }
+
+                db.run("COMMIT", (commitErr) => {
+                  if (commitErr) return reject(commitErr);
+
+                  resolve({
+                    success: true,
+                    table_id,
+                    orders_paid: orders.length,
+                    amount: totalAmount,
+                    method,
+                  });
+                });
+              }
+            );
+          } catch (error) {
+            db.run("ROLLBACK");
+            reject(error);
+          }
+        });
+      }
+    );
+  });
+}
 module.exports = {
   createOrder,
   getOrders,
@@ -597,4 +822,7 @@ module.exports = {
   payOrder,
   printPaidReceipt,
   getPreparationQueue,
+  getCombinedTableBill,
+  markCombinedTableBillPrinted,
+  payTableOrders,
 };

@@ -30,3 +30,7 @@ export async function createTable(tableData) {
   const response = await apiClient.post("/tables", tableData);
   return response.data;
 }
+export async function getTableActiveBill(tableId) {
+  const response = await apiClient.get(`/tables/${tableId}/active-bill`);
+  return response.data;
+}

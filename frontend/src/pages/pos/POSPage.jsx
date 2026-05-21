@@ -1,11 +1,20 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { getCategories, getProducts, getTables } from "../../api/posApi";
+import {
+  getCategories,
+  getProducts,
+  getTables,
+  getTableActiveBill,
+} from "../../api/posApi";
 import CategoryTabs from "../../components/pos/CategoryTabs";
 import ProductGrid from "../../components/pos/ProductGrid";
 import CartPanel from "../../components/pos/CartPanel";
 import TableSelector from "../../components/pos/TableSelector";
-import { createOrder } from "../../api/ordersApi";
+import {
+  createOrder,
+  printCustomerBill,
+  printCombinedTableBill,
+} from "../../api/ordersApi";
 import AppHeader from "../../components/layout/AppHeader";
 import { getAuthUser } from "../../utils/authSession";
 
@@ -18,7 +27,7 @@ function POSPage() {
 
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedTable, setSelectedTable] = useState(null);
-
+  const [activeTableBill, setActiveTableBill] = useState(null);
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -51,7 +60,19 @@ function POSPage() {
   useEffect(() => {
     loadPOSData();
   }, []);
+  async function handleSelectTable(table) {
+    setSelectedTable(table);
+    setActiveTableBill(null);
 
+    if (!table) return;
+
+    try {
+      const response = await getTableActiveBill(table.id);
+      setActiveTableBill(response.data);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to load table bill");
+    }
+  }
   async function handleSelectCategory(categoryId) {
     setSelectedCategory(categoryId);
     await loadPOSData(categoryId);
@@ -106,6 +127,41 @@ function POSPage() {
 
   function handleClear() {
     setCartItems([]);
+  }
+  async function handlePrintCombinedBill() {
+    if (!selectedTable) return;
+
+    try {
+      setError("");
+      const response = await printCombinedTableBill(selectedTable.id);
+
+      setSuccessMessage(
+        `Combined bill for ${selectedTable.name} generated. Total: UGX ${Number(
+          response.data.total || 0
+        ).toLocaleString()}`
+      );
+
+      const billResponse = await getTableActiveBill(selectedTable.id);
+      setActiveTableBill(billResponse.data);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to print combined bill");
+    }
+  }
+  async function handlePrintSingleBill(order) {
+    try {
+      setError("");
+
+      await printCustomerBill(order.id);
+
+      setSuccessMessage(
+        `${order.order_number} customer bill generated separately.`
+      );
+
+      const billResponse = await getTableActiveBill(selectedTable.id);
+      setActiveTableBill(billResponse.data);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to print separate bill");
+    }
   }
   async function handleSaveOrder() {
     try {
@@ -163,8 +219,81 @@ function POSPage() {
             <TableSelector
               tables={tables}
               selectedTable={selectedTable}
-              onSelectTable={setSelectedTable}
+              onSelectTable={handleSelectTable}
             />
+            {selectedTable && activeTableBill?.orders?.length > 0 && (
+              <div className="mt-4 bg-yellow-500/10 border border-yellow-500/30 rounded-3xl p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-yellow-300 text-sm font-black uppercase">
+                      Active Table Bill
+                    </p>
+                    <h2 className="text-xl font-black mt-1">
+                      {selectedTable.name} has unpaid orders
+                    </h2>
+                    <p className="text-slate-300 text-sm mt-1">
+                      Add more items to this same table. Customer bill can be
+                      combined later.
+                    </p>
+                  </div>
+
+                  <div className="text-right">
+                    <p className="text-slate-400 text-sm">Combined Balance</p>
+                    <p className="text-2xl font-black text-yellow-300">
+                      UGX {Number(activeTableBill.total || 0).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid md:grid-cols-2 gap-3 max-h-[220px] overflow-y-auto">
+                  {activeTableBill.orders.map((order) => (
+                    <div
+                      key={order.id}
+                      className="bg-[#0D1117] border border-slate-800 rounded-2xl p-4"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="font-black">{order.order_number}</p>
+                          <p className="text-xs text-slate-400">
+                            {order.items?.length || 0} item(s) • {order.status}
+                          </p>
+                        </div>
+
+                        <p className="font-black text-yellow-300">
+                          UGX{" "}
+                          {Number(
+                            order.balance || order.total || 0
+                          ).toLocaleString()}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handlePrintSingleBill(order)}
+                        className="mt-3 w-full bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-xl text-sm font-bold"
+                      >
+                        Print This Bill Only
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 grid sm:grid-cols-2 gap-3">
+                  <button
+                    onClick={handlePrintCombinedBill}
+                    className="bg-yellow-500 hover:bg-yellow-600 text-black px-4 py-3 rounded-2xl font-black"
+                  >
+                    Print Combined Customer Bill
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      setSuccessMessage("Separate bill printing comes next.")
+                    }
+                    className="bg-[#0D1117] border border-slate-700 hover:border-yellow-500 text-white px-4 py-3 rounded-2xl font-black"
+                  >
+                    Separate Bills
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="mb-5">

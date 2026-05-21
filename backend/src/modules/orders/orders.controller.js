@@ -222,6 +222,54 @@ async function getBarQueue(req, res) {
     });
   }
 }
+async function printCombinedTableBill(req, res) {
+  try {
+    const tableId = req.params.tableId;
+
+    const bill = await ordersService.getCombinedTableBill(tableId);
+
+    if (!bill.orders.length) {
+      return res.status(400).json({
+        success: false,
+        message: "No unpaid orders found for this table",
+      });
+    }
+
+    await ordersService.markCombinedTableBillPrinted(tableId);
+
+    res.json({
+      success: true,
+      message: "Combined customer bill generated",
+      data: bill,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}
+async function payTableOrders(req, res) {
+  try {
+    const result = await ordersService.payTableOrders({
+      table_id: req.params.tableId,
+      method: req.body.method,
+      reference: req.body.reference,
+      received_by: req.user.id,
+    });
+
+    res.json({
+      success: true,
+      message: "Combined table payment completed successfully",
+      data: result,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}
 module.exports = {
   createOrder,
   getOrders,
@@ -234,4 +282,6 @@ module.exports = {
   printPaidReceipt,
   getKitchenQueue,
   getBarQueue,
+  printCombinedTableBill,
+  payTableOrders,
 };

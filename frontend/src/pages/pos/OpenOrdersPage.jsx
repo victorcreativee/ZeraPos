@@ -162,6 +162,44 @@ function OpenOrdersPage() {
       />
 
       <main className="p-6 max-w-7xl mx-auto">
+        <section className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+          <SummaryCard
+            title="Open Orders"
+            value={orders.length}
+            accent="text-yellow-300"
+          />
+
+          <SummaryCard
+            title="Bills Printed"
+            value={
+              orders.filter((order) => order.status === "bill_printed").length
+            }
+            accent="text-blue-300"
+          />
+
+          <SummaryCard
+            title="Tables Occupied"
+            value={
+              new Set(
+                orders
+                  .filter((order) => order.table_name)
+                  .map((order) => order.table_name)
+              ).size
+            }
+            accent="text-purple-300"
+          />
+
+          <SummaryCard
+            title="Open Balance"
+            value={`UGX ${orders
+              .reduce(
+                (sum, order) => sum + Number(order.balance || order.total || 0),
+                0
+              )
+              .toLocaleString()}`}
+            accent="text-green-300"
+          />
+        </section>
         {error && (
           <div className="bg-red-500/10 border border-red-500 text-red-300 px-4 py-3 rounded-xl mb-5">
             {error}
@@ -173,7 +211,7 @@ function OpenOrdersPage() {
             Loading open orders...
           </div>
         ) : (
-          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
+          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5 max-h-[72vh] overflow-y-auto pr-1">
             {orders.map((order) => (
               <div
                 key={order.id}
@@ -198,7 +236,7 @@ function OpenOrdersPage() {
                   </span>
                 </div>
 
-                <div className="mt-4 bg-slate-950/60 border border-slate-800 rounded-2xl p-4">
+                <div className="mt-4 bg-[#0D1117] border border-slate-800 rounded-2xl p-4">
                   <p className="text-xs text-slate-400">
                     Flow: send order → print kitchen/bar ticket → print customer
                     bill → send customer to counter for payment.
@@ -219,6 +257,19 @@ function OpenOrdersPage() {
                   <div className="flex justify-between">
                     <span className="text-slate-400">Created</span>
                     <span>{order.created_at}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Waiting</span>
+
+                    <span
+                      className={`font-bold ${
+                        Number(order.waiting_minutes || 0) > 20
+                          ? "text-red-400"
+                          : "text-yellow-300"
+                      }`}
+                    >
+                      {Number(order.waiting_minutes || 0)} min
+                    </span>
                   </div>
 
                   <div className="flex justify-between">
@@ -246,7 +297,7 @@ function OpenOrdersPage() {
                     </div>
                   </div>
 
-                  <div className="mt-5 grid grid-cols-2 gap-3">
+                  <div className="mt-5 grid grid-cols-2 gap-3 sticky bottom-0">
                     <button
                       disabled={processingId === order.id}
                       onClick={() =>
@@ -305,5 +356,12 @@ function OpenOrdersPage() {
     </div>
   );
 }
-
+function SummaryCard({ title, value, accent = "text-white" }) {
+  return (
+    <div className="bg-[#111827] border border-slate-800 rounded-3xl p-5">
+      <p className="text-slate-400 text-sm">{title}</p>
+      <h2 className={`text-3xl font-black mt-3 ${accent}`}>{value}</h2>
+    </div>
+  );
+}
 export default OpenOrdersPage;

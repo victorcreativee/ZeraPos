@@ -66,3 +66,18 @@ export async function getBarQueue() {
   const response = await apiClient.get("/orders/bar/queue");
   return response.data;
 }
+export async function printCombinedTableBill(tableId) {
+  const response = await apiClient.post(
+    `/orders/tables/${tableId}/print-combined-bill`
+  );
+
+  return response.data;
+}
+export async function payTableOrders(tableId, paymentData) {
+  const response = await apiClient.post(
+    `/orders/tables/${tableId}/pay`,
+    paymentData
+  );
+
+  return response.data;
+}

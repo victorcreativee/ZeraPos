@@ -158,9 +158,7 @@ function LoginPage() {
               </button>
             </div>
 
-            <p className="text-center text-slate-500 text-sm">
-              Default admin PIN: 1234
-            </p>
+            <p className="text-center text-slate-500 text-sm"></p>
           </div>
         ) : (
           <form onSubmit={handlePasswordLogin} className="space-y-4">

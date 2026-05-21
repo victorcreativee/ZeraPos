@@ -5,6 +5,11 @@ const { requireAuth, allowRoles } = require("../../middleware/auth.middleware");
 const router = express.Router();
 
 router.get("/", requireAuth, tablesController.getTables);
+router.get(
+  "/:id/active-bill",
+  requireAuth,
+  tablesController.getTableActiveBill
+);
 
 router.post(
   "/",

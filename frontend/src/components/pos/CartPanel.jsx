@@ -12,10 +12,15 @@ function CartPanel({
     0
   );
 
+  const totalQuantity = cartItems.reduce(
+    (sum, item) => sum + Number(item.quantity || 0),
+    0
+  );
+
   return (
     <div className="bg-[#111827] border border-slate-800 rounded-3xl h-full flex flex-col overflow-hidden">
-      <div className="p-5 border-b border-slate-800">
-        <div className="flex items-center justify-between">
+      <div className="p-4 border-b border-slate-800">
+        <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-wide text-slate-500">
               Waiter Order
@@ -26,14 +31,14 @@ function CartPanel({
           <button
             onClick={onClear}
             disabled={cartItems.length === 0}
-            className="text-red-300 bg-red-500/10 hover:bg-red-500/20 disabled:opacity-40 px-3 py-2 rounded-xl text-sm"
+            className="text-red-300 bg-red-500/10 hover:bg-red-500/20 disabled:opacity-40 px-3 py-2 rounded-xl text-sm font-bold"
           >
             Clear
           </button>
         </div>
 
         <p className="text-slate-400 text-sm mt-2">
-          {cartItems.length} item{cartItems.length !== 1 ? "s" : ""} added
+          {totalQuantity} item{totalQuantity !== 1 ? "s" : ""} added
         </p>
       </div>
 
@@ -41,7 +46,7 @@ function CartPanel({
         {cartItems.length === 0 && (
           <div className="h-full flex items-center justify-center text-center text-slate-500">
             <div>
-              <p className="text-lg font-semibold">No items yet</p>
+              <p className="text-lg font-black">No items yet</p>
               <p className="text-sm mt-1">Tap products to build the order.</p>
             </div>
           </div>
@@ -53,16 +58,16 @@ function CartPanel({
             className="bg-[#0D1117] border border-slate-800 rounded-2xl p-4"
           >
             <div className="flex justify-between gap-3">
-              <div>
-                <h3 className="font-bold text-white">{item.name}</h3>
+              <div className="min-w-0">
+                <h3 className="font-black text-white truncate">{item.name}</h3>
                 <p className="text-slate-400 text-sm">
-                  UGX {Number(item.price).toLocaleString()}
+                  UGX {Number(item.price).toLocaleString()} each
                 </p>
               </div>
 
               <button
                 onClick={() => onRemove(item.id)}
-                className="text-red-400 hover:text-red-300 text-sm"
+                className="text-red-400 hover:text-red-300 text-sm shrink-0"
               >
                 Remove
               </button>
@@ -72,24 +77,24 @@ function CartPanel({
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => onDecrease(item.id)}
-                  className="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 font-bold"
+                  className="w-11 h-11 rounded-xl bg-slate-800 hover:bg-slate-700 font-black text-lg"
                 >
                   -
                 </button>
 
-                <span className="w-9 text-center font-black">
+                <span className="w-10 text-center font-black text-lg">
                   {item.quantity}
                 </span>
 
                 <button
                   onClick={() => onIncrease(item.id)}
-                  className="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 font-bold"
+                  className="w-11 h-11 rounded-xl bg-slate-800 hover:bg-slate-700 font-black text-lg"
                 >
                   +
                 </button>
               </div>
 
-              <p className="font-black text-green-400">
+              <p className="font-black text-green-400 shrink-0">
                 UGX {(item.price * item.quantity).toLocaleString()}
               </p>
             </div>
@@ -97,7 +102,7 @@ function CartPanel({
         ))}
       </div>
 
-      <div className="border-t border-slate-800 p-5 space-y-4">
+      <div className="border-t border-slate-800 p-4 space-y-4">
         <div className="bg-[#0D1117] rounded-2xl p-4 space-y-3">
           <div className="flex justify-between text-slate-300">
             <span>Subtotal</span>
@@ -117,12 +122,12 @@ function CartPanel({
           disabled={cartItems.length === 0 || savingOrder}
           className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 rounded-2xl py-4 font-black text-lg"
         >
-          {savingOrder ? "Sending to Counter..." : "Send Bill to Counter"}
+          {savingOrder ? "Sending..." : "Send Bill to Counter"}
         </button>
-        <div className="bg-blue-500/10 border border-blue-500/30 rounded-2xl p-3 text-sm text-blue-200">
-          After sending, the bill appears at the cashier counter. Payment proof
-          will show on your waiter dashboard after cashier receives payment.
-        </div>
+
+        <p className="text-xs text-slate-500 text-center">
+          Cashier confirms payment after customer pays.
+        </p>
       </div>
     </div>
   );

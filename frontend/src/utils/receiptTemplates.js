@@ -50,93 +50,160 @@ export function buildKitchenBarTicket(order) {
 
 export function buildCustomerBill(order) {
   return `
-      <div class="center">
-        <h2>ZERA POS</h2>
-        <p class="small">CUSTOMER BILL</p>
-      </div>
-  
-      <div class="line"></div>
-  
-      <p><strong>Order:</strong> ${order.order_number}</p>
-      <p><strong>Table:</strong> ${order.table_name || "Takeaway"}</p>
-      <p><strong>Server:</strong> ${order.server_name || "-"}</p>
-  
-      <div class="line"></div>
-  
-      ${order.items
-        .map(
-          (item) => `
-          <div class="row">
-            <span>${item.product_name} x ${item.quantity}</span>
-            <span>${formatMoney(item.total_price)}</span>
-          </div>
-        `
-        )
-        .join("")}
-  
-      <div class="line"></div>
-  
-      <div class="row total">
-        <span>Total</span>
-        <span>${formatMoney(order.total)}</span>
-      </div>
-  
-      <div class="line"></div>
-  
-      <p class="small"><strong>Payment Options:</strong></p>
-      <p class="small">Cash | MTN MoMo | Airtel Money | Card</p>
-      <p class="center small">Thank you for choosing us.</p>
-    `;
+    <div class="center">
+      <h2>ZERA POS</h2>
+      <p class="small muted">Customer Bill</p>
+      <p class="tiny muted">Demo Bar & Restaurant</p>
+    </div>
+
+    <div class="solid-line"></div>
+
+    <div class="row">
+      <span class="bold">Bill No</span>
+      <span>${order.order_number}</span>
+    </div>
+
+    <div class="row">
+      <span>Table</span>
+      <span>${order.table_name || "Takeaway"}</span>
+    </div>
+
+    <div class="row">
+      <span>Server</span>
+      <span>${order.server_name || "-"}</span>
+    </div>
+
+    <div class="row">
+      <span>Date</span>
+      <span>${new Date(order.created_at).toLocaleString()}</span>
+    </div>
+
+    <div class="line"></div>
+
+    <div class="row bold small">
+      <span>ITEM</span>
+      <span>TOTAL</span>
+    </div>
+
+    <div class="line"></div>
+
+    ${order.items
+      .map(
+        (item) => `
+        <div class="row">
+          <span>
+            ${item.product_name}<br/>
+            <span class="tiny muted">
+              ${formatMoney(item.price)} x ${item.quantity}
+            </span>
+          </span>
+
+          <span>${formatMoney(item.total_price)}</span>
+        </div>
+      `
+      )
+      .join("")}
+
+    <div class="solid-line"></div>
+
+    <div class="row total">
+      <span>TOTAL</span>
+      <span>${formatMoney(order.total)}</span>
+    </div>
+
+    <div class="line"></div>
+
+    <p class="small bold">Payment Methods</p>
+
+    <p class="small muted">
+      Cash • MTN MoMo • Airtel Money • Card
+    </p>
+
+    <div class="line"></div>
+
+    <p class="center small">
+      Thank you for dining with us.
+    </p>
+  `;
 }
 export function buildPaidReceipt(order, paymentMethod = "Cash") {
   return `
-      <div class="center">
-        <h2>ZERA POS</h2>
-        <p class="small">PAID RECEIPT</p>
-      </div>
-  
-      <div class="line"></div>
-  
-      <p><strong>Order:</strong> ${order.order_number}</p>
-      <p><strong>Table:</strong> ${order.table_name || "Takeaway"}</p>
-      <p><strong>Server:</strong> ${order.server_name || "-"}</p>
-  
-      <div class="line"></div>
-  
-      ${order.items
-        .map(
-          (item) => `
-          <div class="row">
-            <span>${item.product_name} x ${item.quantity}</span>
-            <span>${formatMoney(item.total_price)}</span>
-          </div>
-        `
-        )
-        .join("")}
-  
-      <div class="line"></div>
-  
-      <div class="row total">
-        <span>Total Paid</span>
-        <span>${formatMoney(order.total)}</span>
-      </div>
-  
-      <div class="row">
-        <span>Payment Method</span>
-        <span>${paymentMethod}</span>
-      </div>
-  
-      <div class="row">
-        <span>Status</span>
-        <span>PAID</span>
-      </div>
-  
-      <div class="line"></div>
-  
-      <p class="center small">
-        Thank you for visiting.
-      </p>
-    `;
+    <div class="center">
+      <h2>ZERA POS</h2>
+      <p class="small muted">Official Payment Receipt</p>
+      <p class="tiny muted">Demo Bar & Restaurant</p>
+    </div>
+
+    <div class="solid-line"></div>
+
+    <div class="row">
+      <span class="bold">Receipt No</span>
+      <span>${order.order_number}</span>
+    </div>
+
+    <div class="row">
+      <span>Table</span>
+      <span>${order.table_name || "Takeaway"}</span>
+    </div>
+
+    <div class="row">
+      <span>Server</span>
+      <span>${order.server_name || "-"}</span>
+    </div>
+
+    <div class="row">
+      <span>Date</span>
+      <span>${new Date().toLocaleString()}</span>
+    </div>
+
+    <div class="line"></div>
+
+    <div class="row bold small">
+      <span>ITEM</span>
+      <span>TOTAL</span>
+    </div>
+
+    <div class="line"></div>
+
+    ${order.items
+      .map(
+        (item) => `
+        <div class="row">
+          <span>
+            ${item.product_name}<br/>
+            <span class="tiny muted">
+              ${formatMoney(item.price)} x ${item.quantity}
+            </span>
+          </span>
+
+          <span>${formatMoney(item.total_price)}</span>
+        </div>
+      `
+      )
+      .join("")}
+
+    <div class="solid-line"></div>
+
+    <div class="row total">
+      <span>TOTAL PAID</span>
+      <span>${formatMoney(order.total)}</span>
+    </div>
+
+    <div class="row">
+      <span>Payment</span>
+      <span>${paymentMethod}</span>
+    </div>
+
+    <div class="status-paid">
+      PAID
+    </div>
+
+    <div class="line"></div>
+
+    <p class="center small">
+      Thank you for visiting.
+    </p>
+  `;
 }
 
 export function buildPreparationTicket(order, ticketType) {
@@ -151,9 +218,10 @@ export function buildPreparationTicket(order, ticketType) {
   const title = ticketType === "kitchen" ? "KITCHEN TICKET" : "BAR TICKET";
 
   return `
-      <div class="center">
+     <div class="center">
         <h2>ZERA POS</h2>
-        <p class="small">${title}</p>
+        <p class="small bold">${title}</p>
+        <p class="tiny muted">Preparation Department</p>
       </div>
   
       <div class="line"></div>
