@@ -28,7 +28,6 @@ function LoginPage() {
     saveAuthSession(data);
 
     const role = data.user?.role;
-
     if (role === "admin") {
       navigate("/admin");
     } else if (role === "manager") {
@@ -39,8 +38,10 @@ function LoginPage() {
       navigate("/kitchen");
     } else if (role === "bar") {
       navigate("/bar");
+    } else if (role === "server") {
+      navigate("/pos");
     } else {
-      navigate("/dashboard");
+      navigate("/pos");
     }
   };
 

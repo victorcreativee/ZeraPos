@@ -122,11 +122,12 @@ function CartPanel({
           disabled={cartItems.length === 0 || savingOrder}
           className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 rounded-2xl py-4 font-black text-lg"
         >
-          {savingOrder ? "Sending..." : "Send Bill to Counter"}
+          {savingOrder ? "Sending..." : "Send Order"}
         </button>
 
         <p className="text-xs text-slate-500 text-center">
-          Cashier confirms payment after customer pays.
+          Order is saved under the selected table. Print customer bill only when
+          the customer asks to pay.
         </p>
       </div>
     </div>

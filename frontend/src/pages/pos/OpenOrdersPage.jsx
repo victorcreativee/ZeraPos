@@ -1,17 +1,14 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import AppHeader from "../../components/layout/AppHeader";
 import {
   getOrders,
-  printCustomerBill,
+  printCombinedTableBill,
   printOrderTicket,
   cancelOrder,
 } from "../../api/ordersApi";
-
 import { printReceiptWindow } from "../../utils/printReceipt";
-
 import {
-  buildCustomerBill,
+  buildCombinedCustomerBill,
   buildPreparationTicket,
 } from "../../utils/receiptTemplates";
 
@@ -20,6 +17,7 @@ function OpenOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [processingId, setProcessingId] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   async function loadOrders() {
     try {
@@ -53,8 +51,8 @@ function OpenOrdersPage() {
         orderId,
         ticketType === "kitchen" ? "kitchen_ticket" : "bar_ticket"
       );
-      const order = response.data;
 
+      const order = response.data;
       const html = buildPreparationTicket(order, ticketType);
 
       if (!html) {
@@ -66,8 +64,11 @@ function OpenOrdersPage() {
         return;
       }
 
-      const title = ticketType === "kitchen" ? "Kitchen Ticket" : "Bar Ticket";
-      printReceiptWindow(title, html);
+      printReceiptWindow(
+        ticketType === "kitchen" ? "Kitchen Ticket" : "Bar Ticket",
+        html
+      );
+
       await loadOrders();
     } catch (err) {
       setError(err.response?.data?.message || "Failed to print ticket");
@@ -76,50 +77,28 @@ function OpenOrdersPage() {
     }
   }
 
-  async function handlePrintBill(orderId) {
+  async function handlePrintBill(tableGroup) {
     try {
-      setProcessingId(orderId);
+      setProcessingId(tableGroup.table_id || tableGroup.orders[0]?.id);
       setError("");
 
-      const response = await printCustomerBill(orderId);
-      const html = buildCustomerBill(response.data);
+      if (!tableGroup.table_id) {
+        setError("Takeaway combined bill is not supported yet.");
+        return;
+      }
 
-      printReceiptWindow("Customer Bill", html);
+      const response = await printCombinedTableBill(tableGroup.table_id);
+      const html = buildCombinedCustomerBill(response.data);
+
+      printReceiptWindow(`${tableGroup.table_name} Customer Bill`, html);
+
       await loadOrders();
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to print bill");
+      setError(err.response?.data?.message || "Failed to print customer bill");
     } finally {
       setProcessingId(null);
     }
   }
-
-  // async function handlePayment(order) {
-  //   try {
-  //     setProcessingId(order.id);
-  //     setError("");
-
-  //     const method = window.prompt(
-  //       "Enter payment method:\nCash\nMTN Mobile Money\nAirtel Money\nCard",
-  //       "Cash"
-  //     );
-
-  //     if (!method) return;
-
-  //     const response = await payOrder(order.id, {
-  //       amount: order.total,
-  //       method,
-  //     });
-
-  //     const html = buildPaidReceipt(response.data, method);
-  //     printReceiptWindow("Paid Receipt", html);
-
-  //     await loadOrders();
-  //   } catch (err) {
-  //     setError(err.response?.data?.message || "Payment failed");
-  //   } finally {
-  //     setProcessingId(null);
-  //   }
-  // }
 
   async function handleCancelOrder(order) {
     try {
@@ -141,23 +120,44 @@ function OpenOrdersPage() {
     }
   }
 
-  function getStatusStyle(status) {
-    if (status === "sent") {
-      return "bg-blue-500/10 text-blue-300 border-blue-500/30";
-    }
+  const filteredOrders = orders.filter((order) => {
+    const keyword = searchTerm.trim().toLowerCase();
 
-    if (status === "bill_printed") {
-      return "bg-yellow-500/10 text-yellow-300 border-yellow-500/30";
-    }
+    if (!keyword) return true;
 
-    return "bg-slate-500/10 text-slate-300 border-slate-500/30";
-  }
+    return (
+      order.order_number?.toLowerCase().includes(keyword) ||
+      order.table_name?.toLowerCase().includes(keyword) ||
+      order.server_name?.toLowerCase().includes(keyword) ||
+      order.status?.toLowerCase().includes(keyword)
+    );
+  });
+
+  const groupedTables = Object.values(
+    filteredOrders.reduce((acc, order) => {
+      const key = order.table_id || `takeaway-${order.id}`;
+
+      if (!acc[key]) {
+        acc[key] = {
+          table_id: order.table_id,
+          table_name: order.table_name || "Takeaway",
+          orders: [],
+          total: 0,
+        };
+      }
+
+      acc[key].orders.push(order);
+      acc[key].total += Number(order.balance || order.total || 0);
+
+      return acc;
+    }, {})
+  );
 
   return (
     <div className="min-h-screen bg-[#0D1117] text-white">
       <AppHeader
         title="Open Orders"
-        subtitle="Manage active orders, tickets, bills, payment, and cancellations"
+        subtitle="Tables are grouped so customer bills are easier to manage"
         showBackToDashboard={true}
       />
 
@@ -200,6 +200,7 @@ function OpenOrdersPage() {
             accent="text-green-300"
           />
         </section>
+
         {error && (
           <div className="bg-red-500/10 border border-red-500 text-red-300 px-4 py-3 rounded-xl mb-5">
             {error}
@@ -211,151 +212,146 @@ function OpenOrdersPage() {
             Loading open orders...
           </div>
         ) : (
-          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5 max-h-[72vh] overflow-y-auto pr-1">
-            {orders.map((order) => (
-              <div
-                key={order.id}
-                className="bg-[#111827] border border-slate-800 rounded-3xl p-6 shadow-xl"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h2 className="text-xl font-bold">
-                      {order.table_name || "Takeaway"}
-                    </h2>
-                    <p className="text-slate-400 text-sm mt-1">
-                      {order.order_number}
-                    </p>
-                  </div>
+          <section>
+            <div className="mb-4">
+              <input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search table, order number, waiter, or status..."
+                className="w-full bg-[#111827] border border-slate-800 focus:border-purple-500 outline-none rounded-2xl px-4 py-3 text-white placeholder:text-slate-500"
+              />
+            </div>
 
-                  <span
-                    className={`px-3 py-1 rounded-full border text-xs uppercase ${getStatusStyle(
-                      order.status
-                    )}`}
-                  >
-                    {order.status?.replace("_", " ")}
-                  </span>
-                </div>
+            <div className="grid lg:grid-cols-2 gap-5 max-h-[68vh] overflow-y-auto pr-1">
+              {groupedTables.map((tableGroup) => (
+                <div
+                  key={tableGroup.table_id || tableGroup.table_name}
+                  className="bg-[#111827] border border-slate-800 rounded-3xl p-5 shadow-xl flex flex-col min-h-[360px]"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <h2 className="text-lg font-black truncate">
+                        {tableGroup.table_name}
+                      </h2>
 
-                <div className="mt-4 bg-[#0D1117] border border-slate-800 rounded-2xl p-4">
-                  <p className="text-xs text-slate-400">
-                    Flow: send order → print kitchen/bar ticket → print customer
-                    bill → send customer to counter for payment.
-                  </p>
-                </div>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {tableGroup.orders.map((order) => (
+                          <span
+                            key={order.id}
+                            className="text-[11px] px-2 py-1 rounded-full bg-[#0D1117] border border-slate-700 text-slate-300"
+                          >
+                            {order.order_number} · UGX{" "}
+                            {Number(
+                              order.balance || order.total || 0
+                            ).toLocaleString()}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
 
-                <div className="mt-5 space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Server</span>
-                    <span>{order.server_name || "-"}</span>
-                  </div>
-
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Type</span>
-                    <span className="capitalize">{order.order_type}</span>
-                  </div>
-
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Created</span>
-                    <span>{order.created_at}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Waiting</span>
-
-                    <span
-                      className={`font-bold ${
-                        Number(order.waiting_minutes || 0) > 20
-                          ? "text-red-400"
-                          : "text-yellow-300"
-                      }`}
-                    >
-                      {Number(order.waiting_minutes || 0)} min
+                    <span className="px-3 py-1 rounded-full border text-[11px] uppercase font-black bg-yellow-500/10 text-yellow-300 border-yellow-500/30">
+                      {tableGroup.orders.length} order
+                      {tableGroup.orders.length > 1 ? "s" : ""}
                     </span>
                   </div>
 
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Subtotal</span>
-                    <span>
-                      UGX {Number(order.subtotal || 0).toLocaleString()}
-                    </span>
-                  </div>
+                  <div className="mt-4 bg-[#0D1117] border border-slate-800 rounded-2xl p-4 space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">
+                        Customer Bill Total
+                      </span>
+                      <span className="font-black text-green-400">
+                        UGX {tableGroup.total.toLocaleString()}
+                      </span>
+                    </div>
 
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Discount</span>
-                    <span>
-                      UGX {Number(order.discount || 0).toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="border-t border-slate-800 mt-5 pt-5">
-                  <div className="flex items-end justify-between gap-4">
-                    <div>
-                      <p className="text-slate-400 text-sm">Total</p>
-                      <h3 className="text-2xl font-black text-green-400">
-                        UGX {Number(order.total || 0).toLocaleString()}
-                      </h3>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Orders Included</span>
+                      <span>{tableGroup.orders.length}</span>
                     </div>
                   </div>
 
-                  <div className="mt-5 grid grid-cols-2 gap-3 sticky bottom-0">
-                    <button
-                      disabled={processingId === order.id}
-                      onClick={() =>
-                        handlePrintPreparationTicket(order.id, "kitchen")
-                      }
-                      className="bg-orange-600 hover:bg-orange-700 disabled:opacity-50 px-3 py-3 rounded-xl font-semibold text-sm"
-                    >
-                      Kitchen Ticket
-                    </button>
+                  <div className="mt-4 grid md:grid-cols-2 gap-3 max-h-[260px] overflow-y-auto pr-1">
+                    {tableGroup.orders.map((order) => (
+                      <div
+                        key={order.id}
+                        className="bg-[#0D1117] border border-slate-800 rounded-2xl p-3"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="font-black text-sm">
+                              {order.order_number}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              {order.server_name || "-"} •{" "}
+                              {order.status?.replace("_", " ")}
+                            </p>
+                          </div>
 
-                    <button
-                      disabled={processingId === order.id}
-                      onClick={() =>
-                        handlePrintPreparationTicket(order.id, "bar")
-                      }
-                      className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 px-3 py-3 rounded-xl font-semibold text-sm"
-                    >
-                      Bar Ticket
-                    </button>
+                          <p className="font-black text-sm">
+                            UGX{" "}
+                            {Number(
+                              order.balance || order.total || 0
+                            ).toLocaleString()}
+                          </p>
+                        </div>
 
-                    <button
-                      disabled={processingId === order.id}
-                      onClick={() => handlePrintBill(order.id)}
-                      className="bg-yellow-600 hover:bg-yellow-700 disabled:opacity-50 px-3 py-3 rounded-xl font-semibold text-sm"
-                    >
-                      Customer Bill
-                    </button>
+                        <div className="grid grid-cols-2 gap-2 mt-3">
+                          <button
+                            disabled={processingId === order.id}
+                            onClick={() =>
+                              handlePrintPreparationTicket(order.id, "kitchen")
+                            }
+                            className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 px-3 py-2 rounded-xl font-black text-xs"
+                          >
+                            Kitchen
+                          </button>
 
-                    <Link
-                      to="/counter"
-                      className="bg-green-600 hover:bg-green-700 px-3 py-3 rounded-xl font-semibold text-sm text-center"
-                    >
-                      Send to Counter
-                    </Link>
+                          <button
+                            disabled={processingId === order.id}
+                            onClick={() =>
+                              handlePrintPreparationTicket(order.id, "bar")
+                            }
+                            className="bg-purple-500 hover:bg-purple-600 disabled:opacity-50 px-3 py-2 rounded-xl font-black text-xs"
+                          >
+                            Bar
+                          </button>
 
-                    <button
-                      disabled={processingId === order.id}
-                      onClick={() => handleCancelOrder(order)}
-                      className="col-span-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-300 disabled:opacity-50 px-3 py-3 rounded-xl font-semibold text-sm"
-                    >
-                      Cancel / Void Order
-                    </button>
+                          <button
+                            disabled={processingId === order.id}
+                            onClick={() => handleCancelOrder(order)}
+                            className="col-span-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-300 disabled:opacity-50 px-3 py-2 rounded-xl font-black text-xs"
+                          >
+                            Cancel / Void {order.order_number}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
-              </div>
-            ))}
 
-            {orders.length === 0 && (
-              <div className="col-span-full bg-[#111827] border border-slate-800 rounded-3xl p-10 text-center text-slate-400">
-                No open orders found.
-              </div>
-            )}
-          </div>
+                  <button
+                    disabled={processingId === tableGroup.orders[0]?.id}
+                    onClick={() => handlePrintBill(tableGroup)}
+                    className="mt-4 bg-yellow-500 hover:bg-yellow-600 text-black disabled:opacity-50 px-3 py-3 rounded-xl font-black text-sm"
+                  >
+                    Print Customer Bill
+                  </button>
+                </div>
+              ))}
+
+              {groupedTables.length === 0 && (
+                <div className="col-span-full bg-[#111827] border border-slate-800 rounded-3xl p-10 text-center text-slate-400">
+                  No open orders found.
+                </div>
+              )}
+            </div>
+          </section>
         )}
       </main>
     </div>
   );
 }
+
 function SummaryCard({ title, value, accent = "text-white" }) {
   return (
     <div className="bg-[#111827] border border-slate-800 rounded-3xl p-5">
@@ -364,4 +360,5 @@ function SummaryCard({ title, value, accent = "text-white" }) {
     </div>
   );
 }
+
 export default OpenOrdersPage;

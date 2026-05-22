@@ -248,3 +248,73 @@ export function buildPreparationTicket(order, ticketType) {
       <p class="center small">Prepare and hand to server.</p>
     `;
 }
+export function buildCombinedCustomerBill(bill) {
+  const items = bill.items || [];
+  const orders = bill.orders || [];
+
+  return `
+    <div class="center">
+      <h2>ZERA POS</h2>
+      <p class="small muted">Combined Customer Bill</p>
+      <p class="tiny muted">Demo Bar & Restaurant</p>
+    </div>
+
+    <div class="solid-line"></div>
+
+    <div class="row">
+      <span class="bold">Table</span>
+      <span>${bill.table?.name || "Table"}</span>
+    </div>
+
+    <div class="row">
+      <span>Orders</span>
+      <span>${orders.map((order) => order.order_number).join(", ")}</span>
+    </div>
+
+    <div class="row">
+      <span>Date</span>
+      <span>${new Date().toLocaleString()}</span>
+    </div>
+
+    <div class="line"></div>
+
+    <div class="row bold small">
+      <span>ITEM</span>
+      <span>TOTAL</span>
+    </div>
+
+    <div class="line"></div>
+
+    ${items
+      .map(
+        (item) => `
+        <div class="row">
+          <span>
+            ${item.product_name}<br/>
+            <span class="tiny muted">
+              ${item.quantity} x ${formatMoney(item.unit_price)}
+            </span>
+          </span>
+          <span>${formatMoney(item.total_price)}</span>
+        </div>
+      `
+      )
+      .join("")}
+
+    <div class="solid-line"></div>
+
+    <div class="row total">
+      <span>TOTAL</span>
+      <span>${formatMoney(bill.total)}</span>
+    </div>
+
+    <div class="line"></div>
+
+    <p class="small bold">Payment Methods</p>
+    <p class="small muted">Cash • MTN MoMo • Airtel Money • Card</p>
+
+    <div class="line"></div>
+
+    <p class="center small">Thank you for dining with us.</p>
+  `;
+}

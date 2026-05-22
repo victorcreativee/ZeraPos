@@ -12,11 +12,18 @@ import CartPanel from "../../components/pos/CartPanel";
 import TableSelector from "../../components/pos/TableSelector";
 import {
   createOrder,
+  printOrderTicket,
   printCustomerBill,
   printCombinedTableBill,
 } from "../../api/ordersApi";
 import AppHeader from "../../components/layout/AppHeader";
 import { getAuthUser } from "../../utils/authSession";
+import { printReceiptWindow } from "../../utils/printReceipt";
+import {
+  buildPreparationTicket,
+  buildCombinedCustomerBill,
+} from "../../utils/receiptTemplates";
+import { getMyDashboardStats } from "../../api/reportsApi";
 
 function POSPage() {
   const user = getAuthUser();
@@ -34,6 +41,11 @@ function POSPage() {
   const [savingOrder, setSavingOrder] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [lastSentOrder, setLastSentOrder] = useState(null);
+  const [waiterStats, setWaiterStats] = useState({
+    my_sales_today: 0,
+    my_open_orders: 0,
+    my_tables_served_today: 0,
+  });
 
   async function loadPOSData(categoryId = null) {
     try {
@@ -56,10 +68,20 @@ function POSPage() {
       setLoading(false);
     }
   }
+  async function loadWaiterStats() {
+    try {
+      const response = await getMyDashboardStats();
+      setWaiterStats(response.data || {});
+    } catch (err) {
+      console.log("Failed to load waiter stats", err);
+    }
+  }
 
   useEffect(() => {
     loadPOSData();
+    loadWaiterStats();
   }, []);
+
   async function handleSelectTable(table) {
     setSelectedTable(table);
     setActiveTableBill(null);
@@ -133,18 +155,24 @@ function POSPage() {
 
     try {
       setError("");
+
       const response = await printCombinedTableBill(selectedTable.id);
+      const bill = response.data;
+
+      const html = buildCombinedCustomerBill(bill);
+
+      printReceiptWindow(`${selectedTable.name} Customer Bill`, html);
 
       setSuccessMessage(
-        `Combined bill for ${selectedTable.name} generated. Total: UGX ${Number(
-          response.data.total || 0
+        `Customer bill printed for ${selectedTable.name}. Total: UGX ${Number(
+          bill.total || 0
         ).toLocaleString()}`
       );
 
       const billResponse = await getTableActiveBill(selectedTable.id);
       setActiveTableBill(billResponse.data);
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to print combined bill");
+      setError(err.response?.data?.message || "Failed to print customer bill");
     }
   }
   async function handlePrintSingleBill(order) {
@@ -161,6 +189,36 @@ function POSPage() {
       setActiveTableBill(billResponse.data);
     } catch (err) {
       setError(err.response?.data?.message || "Failed to print separate bill");
+    }
+  }
+  async function handlePrintLastOrderTicket(ticketType) {
+    if (!lastSentOrder?.id) return;
+
+    try {
+      setError("");
+
+      const response = await printOrderTicket(
+        lastSentOrder.id,
+        ticketType === "kitchen" ? "kitchen_ticket" : "bar_ticket"
+      );
+
+      const html = buildPreparationTicket(response.data, ticketType);
+
+      if (!html) {
+        setError(
+          ticketType === "kitchen"
+            ? "This order has no kitchen items."
+            : "This order has no bar items."
+        );
+        return;
+      }
+
+      printReceiptWindow(
+        ticketType === "kitchen" ? "Kitchen Ticket" : "Bar Ticket",
+        html
+      );
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to print ticket");
     }
   }
   async function handleSaveOrder() {
@@ -182,13 +240,16 @@ function POSPage() {
 
       const response = await createOrder(orderData);
       setLastSentOrder({
+        id: response.id,
         order_number: response.order_number,
         total: response.total,
         table_name: selectedTable?.name || "Takeaway",
       });
 
       setSuccessMessage(
-        `${response.order_number} has been sent to counter. Customer should pay cashier only.`
+        `${response.order_number} saved for ${
+          selectedTable?.name || "Takeaway"
+        }.`
       );
 
       setTimeout(() => {
@@ -197,7 +258,11 @@ function POSPage() {
 
       setCartItems([]);
 
-      await loadPOSData(selectedCategory);
+      await loadWaiterStats();
+      if (selectedTable) {
+        const billResponse = await getTableActiveBill(selectedTable.id);
+        setActiveTableBill(billResponse.data);
+      }
     } catch (err) {
       setError(err.response?.data?.message || "Failed to save order");
     } finally {
@@ -216,82 +281,74 @@ function POSPage() {
       <main className="p-5 grid xl:grid-cols-[1fr_420px] gap-5 h-[calc(100vh-81px)]">
         <section className="overflow-y-auto pr-1">
           <div className="mb-4">
+            <div className="grid sm:grid-cols-3 gap-3 mb-4">
+              <MiniStat
+                label="Sales Today"
+                value={`UGX ${Number(
+                  waiterStats.my_sales_today || 0
+                ).toLocaleString()}`}
+              />
+
+              <MiniStat
+                label="Open Orders"
+                value={waiterStats.my_open_orders || 0}
+              />
+
+              <MiniStat
+                label="Tables Served"
+                value={waiterStats.my_tables_served_today || 0}
+              />
+            </div>
             <TableSelector
               tables={tables}
               selectedTable={selectedTable}
               onSelectTable={handleSelectTable}
             />
             {selectedTable && activeTableBill?.orders?.length > 0 && (
-              <div className="mt-4 bg-yellow-500/10 border border-yellow-500/30 rounded-3xl p-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-yellow-300 text-sm font-black uppercase">
-                      Active Table Bill
-                    </p>
-                    <h2 className="text-xl font-black mt-1">
-                      {selectedTable.name} has unpaid orders
-                    </h2>
-                    <p className="text-slate-300 text-sm mt-1">
-                      Add more items to this same table. Customer bill can be
-                      combined later.
-                    </p>
-                  </div>
+              <div className="mt-2 bg-[#0B1220] border border-slate-800 rounded-xl px-3 py-2 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[11px] text-slate-500 uppercase font-bold">
+                    Active Bill
+                  </p>
+                  <div className="flex items-center gap-2 flex-wrap mt-1">
+                    <span className="text-sm font-black">
+                      {selectedTable.name}
+                    </span>
 
-                  <div className="text-right">
-                    <p className="text-slate-400 text-sm">Combined Balance</p>
-                    <p className="text-2xl font-black text-yellow-300">
-                      UGX {Number(activeTableBill.total || 0).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-4 grid md:grid-cols-2 gap-3 max-h-[220px] overflow-y-auto">
-                  {activeTableBill.orders.map((order) => (
-                    <div
-                      key={order.id}
-                      className="bg-[#0D1117] border border-slate-800 rounded-2xl p-4"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="font-black">{order.order_number}</p>
-                          <p className="text-xs text-slate-400">
-                            {order.items?.length || 0} item(s) • {order.status}
-                          </p>
-                        </div>
-
-                        <p className="font-black text-yellow-300">
-                          UGX{" "}
-                          {Number(
-                            order.balance || order.total || 0
-                          ).toLocaleString()}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => handlePrintSingleBill(order)}
-                        className="mt-3 w-full bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-xl text-sm font-bold"
+                    {activeTableBill.orders.map((order) => (
+                      <span
+                        key={order.id}
+                        className="text-[11px] px-2 py-1 rounded-full bg-slate-800 text-slate-200 border border-slate-700"
                       >
-                        Print This Bill Only
-                      </button>
-                    </div>
-                  ))}
+                        {order.order_number} · UGX{" "}
+                        {Number(
+                          order.balance || order.total || 0
+                        ).toLocaleString()}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-                <div className="mt-4 grid sm:grid-cols-2 gap-3">
-                  <button
-                    onClick={handlePrintCombinedBill}
-                    className="bg-yellow-500 hover:bg-yellow-600 text-black px-4 py-3 rounded-2xl font-black"
-                  >
-                    Print Combined Customer Bill
-                  </button>
 
-                  <button
-                    onClick={() =>
-                      setSuccessMessage("Separate bill printing comes next.")
-                    }
-                    className="bg-[#0D1117] border border-slate-700 hover:border-yellow-500 text-white px-4 py-3 rounded-2xl font-black"
-                  >
-                    Separate Bills
-                  </button>
+                <div className="text-right shrink-0">
+                  <p className="text-[11px] text-slate-500">Total</p>
+                  <p className="text-base font-black text-green-400">
+                    UGX {Number(activeTableBill.total || 0).toLocaleString()}
+                  </p>
                 </div>
+
+                <button
+                  onClick={handlePrintCombinedBill}
+                  className="shrink-0 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg text-xs font-black"
+                >
+                  Print Bill
+                </button>
+
+                <Link
+                  to="/orders/open"
+                  className="shrink-0 bg-slate-800 hover:bg-slate-700 text-white px-3 py-2 rounded-lg text-xs font-black"
+                >
+                  Orders
+                </Link>
               </div>
             )}
           </div>
@@ -314,7 +371,7 @@ function POSPage() {
             <div className="bg-green-500/10 border border-green-500 text-green-300 px-5 py-4 rounded-2xl mb-5">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="font-black text-lg">Order Sent to Counter</p>
+                  <p className="font-black text-lg">Order Saved</p>
                   <p className="text-sm mt-1">{successMessage}</p>
 
                   {lastSentOrder && (
@@ -342,12 +399,14 @@ function POSPage() {
                   )}
                 </div>
 
-                <Link
-                  to="/dashboard"
-                  className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-xl font-bold whitespace-nowrap"
-                >
-                  View Proof
-                </Link>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Link
+                    to="/orders/open"
+                    className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-xl font-bold whitespace-nowrap text-center"
+                  >
+                    View Orders
+                  </Link>
+                </div>
               </div>
             </div>
           )}
@@ -376,5 +435,12 @@ function POSPage() {
     </div>
   );
 }
-
+function MiniStat({ label, value }) {
+  return (
+    <div className="bg-[#111827] border border-slate-800 rounded-2xl px-4 py-3">
+      <p className="text-xs text-slate-500 uppercase tracking-wide">{label}</p>
+      <p className="text-lg font-black text-white mt-1">{value}</p>
+    </div>
+  );
+}
 export default POSPage;
