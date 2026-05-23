@@ -82,7 +82,7 @@ function CounterDashboardPage() {
       });
 
       setSuccessMessage(
-        `${selectedTableBill.table_name} combined payment received successfully`
+        `${selectedTableBill.table_name} payment received. Table is now ready if no other unpaid orders remain.`
       );
 
       setSelectedTableBill(null);
@@ -263,7 +263,7 @@ function CounterDashboardPage() {
                           </div>
 
                           <p className="text-sm text-slate-400 mt-1">
-                            Waiter: {group.server_name} • {group.orders.length}{" "}
+                            Server: {group.server_name} • {group.orders.length}{" "}
                             unpaid order
                             {group.orders.length > 1 ? "s" : ""}
                           </p>
@@ -286,61 +286,60 @@ function CounterDashboardPage() {
                           </p>
                         </div>
                       </div>
-                      {group.table_id && group.orders.length > 1 && (
-                        <button
-                          onClick={() => {
-                            setSelectedTableBill(group);
-                            setPaymentMethod("cash");
-                            setReference("");
-                          }}
-                          className="w-full bg-yellow-500 hover:bg-yellow-600 text-black px-4 py-3 rounded-2xl font-black"
-                        >
-                          Receive Full Table Payment
-                        </button>
-                      )}
-                      <div className="mt-4 space-y-2">
-                        {group.orders.map((order) => (
-                          <div
-                            key={order.id}
-                            className="bg-black/20 border border-white/10 rounded-2xl p-3"
-                          >
-                            <div className="flex items-center justify-between gap-3">
-                              <div>
-                                <p className="font-bold">
+
+                      <div className="mt-5 bg-black/20 border border-white/5 rounded-2xl p-4">
+                        <div className="space-y-2">
+                          {group.orders.map((order) => (
+                            <div
+                              key={order.id}
+                              className="flex items-center justify-between text-sm"
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="text-white font-semibold">
                                   {order.order_number}
-                                </p>
-                                <p className="text-xs text-slate-400 capitalize">
-                                  {order.status === "bill_printed"
-                                    ? "Customer bill printed"
-                                    : order.status}
-                                </p>
+                                </span>
+
                                 {order.status === "bill_printed" && (
-                                  <span className="inline-block mt-2 bg-blue-500/10 text-blue-300 border border-blue-500/30 px-2 py-1 rounded-full text-xs font-black">
-                                    Separate bill ready
+                                  <span className="text-[10px] bg-blue-500/10 text-blue-300 px-2 py-1 rounded-full border border-blue-500/20">
+                                    Bill Printed
                                   </span>
                                 )}
                               </div>
 
-                              <p className="font-black">
+                              <span className="font-black text-slate-200">
                                 UGX{" "}
                                 {Number(
                                   order.balance || order.total || 0
                                 ).toLocaleString()}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="border-t border-white/10 mt-4 pt-4">
+                          <div className="flex items-center justify-between gap-4">
+                            <div>
+                              <p className="text-slate-400 text-xs">
+                                Amount Due
+                              </p>
+                              <p className="text-2xl font-black text-yellow-300 mt-1">
+                                UGX {Number(group.total || 0).toLocaleString()}
                               </p>
                             </div>
 
                             <button
                               onClick={() => {
-                                setSelectedOrder(order);
+                                setSelectedOrder(null);
+                                setSelectedTableBill(group);
                                 setPaymentMethod("cash");
                                 setReference("");
                               }}
-                              className="mt-3 w-full bg-green-500 hover:bg-green-600 text-white px-4 py-3 rounded-2xl font-black text-sm"
+                              className="bg-green-500 hover:bg-green-600 text-white px-5 py-3 rounded-2xl font-black"
                             >
-                              Receive This Bill
+                              Receive Payment
                             </button>
                           </div>
-                        ))}
+                        </div>
                       </div>
                     </div>
                   );
@@ -395,9 +394,7 @@ function CounterDashboardPage() {
         {selectedTableBill && (
           <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
             <div className="w-full max-w-md bg-[#111827] border border-slate-700 rounded-3xl p-6">
-              <h2 className="text-2xl font-black">
-                Receive Full Table Payment
-              </h2>
+              <h2 className="text-2xl font-black">Receive Table Payment</h2>
 
               <p className="text-slate-400 mt-2">
                 {selectedTableBill.table_name} •{" "}
