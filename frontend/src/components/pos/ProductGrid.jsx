@@ -5,91 +5,64 @@ function ProductGrid({ products, onAddToCart }) {
 
   const filteredProducts = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
-
     if (!keyword) return products;
 
-    return products.filter((product) => {
-      return (
-        product.name?.toLowerCase().includes(keyword) ||
-        product.category_name?.toLowerCase().includes(keyword) ||
-        product.item_type?.toLowerCase().includes(keyword) ||
-        product.send_to?.toLowerCase().includes(keyword)
-      );
-    });
+    return products.filter((product) =>
+      `${product.name || ""} ${product.category_name || ""} ${
+        product.item_type || ""
+      } ${product.send_to || ""}`
+        .toLowerCase()
+        .includes(keyword)
+    );
   }, [products, searchTerm]);
 
   return (
-    <div className="space-y-3">
-      <div className="sticky top-0 z-10 bg-[#0D1117] pb-2">
-        <input
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Search product, food, drink, beer..."
-          className="w-full bg-[#111827] border border-slate-800 focus:border-purple-500 outline-none rounded-2xl px-4 py-3 text-white placeholder:text-slate-500"
-        />
-      </div>
+    <div className="h-full flex flex-col gap-2">
+      <input
+        value={searchTerm}
+        onChange={(event) => setSearchTerm(event.target.value)}
+        placeholder="Search product..."
+        className="h-10 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-900 outline-none placeholder:text-slate-400 focus:border-slate-400"
+      />
 
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[58vh] overflow-y-auto pr-1">
-        {filteredProducts.map((product) => {
-          const isOutOfStock =
-            product.track_stock && Number(product.stock_quantity) <= 0;
-
-          return (
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="grid grid-cols-5 gap-3 pb-2">
+          {filteredProducts.map((product) => (
             <button
               key={product.id}
-              onClick={() => !isOutOfStock && onAddToCart(product)}
-              disabled={isOutOfStock}
-              className={`
-                border rounded-3xl p-5 text-left min-h-[135px] transition active:scale-[0.98]
-                ${
-                  isOutOfStock
-                    ? "bg-slate-900/50 border-slate-800 opacity-50 cursor-not-allowed"
-                    : "bg-[#111827] border-slate-800 hover:border-purple-500 hover:shadow-xl"
-                }
-              `}
+              onClick={() => onAddToCart(product)}
+              className="h-[120px] rounded-2xl border border-slate-200 bg-white p-4 text-left hover:border-emerald-400 transition"
             >
-              <div className="flex justify-between gap-3">
-                <h3 className="font-black text-lg text-white leading-tight line-clamp-2">
+              <div className="flex justify-between gap-2">
+                <h3 className="text-base font-black text-slate-950 line-clamp-1">
+                  {" "}
                   {product.name}
                 </h3>
 
-                {product.send_to !== "none" && (
-                  <span className="text-[10px] uppercase bg-purple-500/10 text-purple-300 px-2 py-1 rounded-full h-fit shrink-0">
+                {product.send_to && product.send_to !== "none" && (
+                  <span className="rounded-full bg-slate-100 px-2 py-1 text-[8px] font-black uppercase text-slate-500">
                     {product.send_to}
                   </span>
                 )}
               </div>
 
-              <p className="text-slate-400 text-sm mt-2 truncate">
-                {product.category_name || product.item_type}
+              <p className="mt-1 text-xs text-slate-500">
+                {product.category_name || product.item_type || "Item"}
               </p>
 
-              <p className="text-2xl font-black mt-4 text-green-400">
-                UGX {Number(product.price).toLocaleString()}
+              <p className="mt-3 text-xl font-black text-emerald-600">
+                {" "}
+                UGX {Number(product.price || 0).toLocaleString()}
               </p>
 
-              {product.track_stock ? (
-                <p
-                  className={`text-xs mt-2 ${
-                    isOutOfStock ? "text-red-400" : "text-slate-500"
-                  }`}
-                >
-                  {isOutOfStock
-                    ? "Out of stock"
-                    : `Stock: ${product.stock_quantity}`}
-                </p>
-              ) : (
-                <p className="text-xs text-slate-500 mt-2">No stock tracking</p>
-              )}
+              <p className="text-[11px] text-slate-400 leading-none">
+                {Number(product.track_stock) === 1
+                  ? `Stock: ${product.stock_quantity || 0}`
+                  : "Tap to add"}
+              </p>
             </button>
-          );
-        })}
-
-        {filteredProducts.length === 0 && (
-          <div className="col-span-full bg-[#111827] border border-slate-800 rounded-3xl p-8 text-center text-slate-400">
-            No products found.
-          </div>
-        )}
+          ))}
+        </div>
       </div>
     </div>
   );

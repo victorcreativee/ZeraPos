@@ -1,12 +1,12 @@
 function CategoryTabs({ categories, selectedCategory, onSelectCategory }) {
   return (
-    <div className="flex gap-2 overflow-x-auto pb-1">
+    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
       <button
         onClick={() => onSelectCategory(null)}
-        className={`px-4 py-2.5 rounded-xl text-sm font-black whitespace-nowrap ${
+        className={`shrink-0 rounded-xl px-4 py-2 text-xs font-black border ${
           selectedCategory === null
-            ? "bg-purple-600 text-white"
-            : "bg-[#111827] text-slate-300 border border-slate-800"
+            ? "bg-slate-950 text-white border-slate-950"
+            : "bg-white text-slate-700 border-slate-200"
         }`}
       >
         All
@@ -16,10 +16,10 @@ function CategoryTabs({ categories, selectedCategory, onSelectCategory }) {
         <button
           key={category.id}
           onClick={() => onSelectCategory(category.id)}
-          className={`px-4 py-2.5 rounded-xl text-sm font-black whitespace-nowrap ${
+          className={`shrink-0 rounded-xl px-4 py-2 text-xs font-black border ${
             selectedCategory === category.id
-              ? "bg-purple-600 text-white"
-              : "bg-[#111827] text-slate-300 border border-slate-800"
+              ? "bg-slate-950 text-white border-slate-950"
+              : "bg-white text-slate-700 border-slate-200"
           }`}
         >
           {category.name}

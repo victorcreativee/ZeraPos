@@ -81,3 +81,7 @@ export async function payTableOrders(tableId, paymentData) {
 
   return response.data;
 }
+export async function getOrderById(orderId) {
+  const response = await api.get(`/orders/${orderId}`);
+  return response.data;
+}
