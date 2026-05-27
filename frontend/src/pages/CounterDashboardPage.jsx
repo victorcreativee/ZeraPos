@@ -107,7 +107,9 @@ function CounterDashboardPage() {
     );
   });
   const groupedOpenBills = filteredOpenOrders.reduce((groups, order) => {
-    const key = order.table_id || `takeaway-${order.id}`;
+    const key = order.table_id
+      ? `table-${order.table_id}`
+      : `takeaway-${order.id}`;
 
     if (!groups[key]) {
       groups[key] = {
@@ -146,21 +148,22 @@ function CounterDashboardPage() {
     }
   }
   return (
-    <div className="min-h-screen bg-[#07111c] text-white">
+    <div className="min-h-screen bg-slate-100 text-slate-950">
       <AppHeader
-        title="Counter Dashboard"
-        subtitle="Receive payments, manage open bills, and monitor cashier collections"
+        title="Cashier Counter"
+        subtitle="Receive payments, close bills, and print receipts"
+        showBackToDashboard={true}
       />
 
-      <main className="max-w-7xl mx-auto p-6 space-y-6">
+      <main className="p-5 space-y-5">
         {successMessage && (
-          <div className="bg-green-500/10 border border-green-500 text-green-300 px-5 py-4 rounded-2xl flex items-center justify-between gap-4">
-            <span> {successMessage}</span>
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-700 font-black flex items-center justify-between">
+            <span>{successMessage}</span>
 
             {lastPaidOrder && (
               <button
                 onClick={() => handlePrintPaidReceipt(lastPaidOrder.id)}
-                className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-xl font-bold text-sm"
+                className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-black text-white"
               >
                 Print Paid Receipt
               </button>
@@ -168,21 +171,21 @@ function CounterDashboardPage() {
           </div>
         )}
 
-        <section className="grid md:grid-cols-2 xl:grid-cols-5 gap-5">
+        <section className="grid md:grid-cols-2 xl:grid-cols-5 gap-4">
           <StatCard
             title="Open Bills"
             value={data.open_bills}
             note={`UGX ${Number(
               data.open_bill_amount || 0
             ).toLocaleString()} unpaid`}
-            accent="text-yellow-400"
+            accent="text-amber-600"
           />
 
           <StatCard
             title="Paid Orders"
             value={data.paid_orders_today}
-            note="Received by you today"
-            accent="text-green-400"
+            note="Received today"
+            accent="text-emerald-600"
           />
 
           <StatCard
@@ -190,13 +193,15 @@ function CounterDashboardPage() {
             value={`UGX ${Number(
               data.total_collected_today || 0
             ).toLocaleString()}`}
-            note="Your cashier collection"
+            note="Cashier collection"
+            accent="text-slate-950"
           />
 
           <StatCard
             title="Cash"
             value={`UGX ${Number(data.cash_collected || 0).toLocaleString()}`}
             note="Cash payments"
+            accent="text-slate-950"
           />
 
           <StatCard
@@ -205,23 +210,25 @@ function CounterDashboardPage() {
               data.mobile_money_collected || 0
             ).toLocaleString()}`}
             note="MoMo payments"
-            accent="text-blue-400"
+            accent="text-blue-600"
           />
         </section>
 
-        <section className="grid xl:grid-cols-[1.35fr_0.65fr] gap-6 min-h-[620px]">
-          <div className="bg-[#111827] border border-slate-800 rounded-3xl overflow-hidden">
-            <div className="p-6 border-b border-slate-800">
+        <section className="grid xl:grid-cols-[1.35fr_0.65fr] gap-5 min-h-[620px]">
+          <div className="rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div className="p-5 border-b border-slate-200">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-2xl font-black">Open Bills</h2>
-                  <p className="text-slate-400 text-sm mt-1">
-                    Confirm money received and close customer bills
+                  <h2 className="text-2xl font-black text-slate-950">
+                    Open Bills
+                  </h2>
+                  <p className="text-slate-500 text-sm font-medium mt-1">
+                    Grouped by table. Cashier confirms payment and closes bills.
                   </p>
                 </div>
 
-                <span className="bg-yellow-500/10 text-yellow-300 px-3 py-1 rounded-full text-xs font-black">
-                  {filteredOpenOrders.length} Live
+                <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black uppercase text-amber-700">
+                  {openBillGroups.length} unpaid
                 </span>
               </div>
 
@@ -229,159 +236,136 @@ function CounterDashboardPage() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search table, order number, or waiter..."
-                className="w-full mt-5 bg-[#0D1117] border border-slate-700 rounded-2xl px-4 py-4 text-white outline-none focus:border-green-500"
+                className="mt-4 h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-900 outline-none focus:border-slate-400"
               />
             </div>
 
-            <div className="p-5 space-y-4 max-h-[520px] overflow-y-auto">
+            <div className="p-3 max-h-[560px] overflow-y-auto">
               {openBillGroups.length === 0 ? (
-                <p className="text-slate-400">No open bills found.</p>
+                <div className="py-20 text-center font-black text-slate-400">
+                  No open bills found.
+                </div>
               ) : (
-                openBillGroups.map((group) => {
-                  const isDelayed = Number(group.waiting_minutes || 0) > 20;
-                  const hasMultipleOrders = group.orders.length > 1;
+                <div className="space-y-2">
+                  {openBillGroups.map((group) => {
+                    const isDelayed = Number(group.waiting_minutes || 0) > 20;
+                    const hasMultipleOrders = group.orders.length > 1;
 
-                  return (
-                    <div
-                      key={group.table_id || group.table_name}
-                      className={`bg-[#0D1117] border rounded-3xl p-5 ${
-                        isDelayed ? "border-red-500/40" : "border-slate-800"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-5">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="font-black text-xl truncate">
-                              {group.table_name}
-                            </p>
+                    return (
+                      <div
+                        key={group.table_id || group.table_name}
+                        className={`rounded-2xl border bg-white px-4 py-3 shadow-sm hover:bg-slate-50 transition ${
+                          isDelayed ? "border-red-200" : "border-slate-200"
+                        }`}
+                      >
+                        <div className="grid grid-cols-[1.2fr_1fr_1fr_1fr_auto] gap-3 items-center">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-black text-slate-950 truncate">
+                                {group.table_name}
+                              </h3>
 
-                            {hasMultipleOrders && (
-                              <span className="bg-yellow-500/10 text-yellow-300 px-2 py-1 rounded-full text-xs font-black">
-                                Combined
-                              </span>
-                            )}
-                          </div>
-
-                          <p className="text-sm text-slate-400 mt-1">
-                            Server: {group.server_name} • {group.orders.length}{" "}
-                            unpaid order
-                            {group.orders.length > 1 ? "s" : ""}
-                          </p>
-
-                          <p
-                            className={`text-sm font-black mt-3 ${
-                              isDelayed ? "text-red-400" : "text-yellow-300"
-                            }`}
-                          >
-                            Waiting {Number(group.waiting_minutes || 0)} min
-                          </p>
-                        </div>
-
-                        <div className="text-right shrink-0">
-                          <p className="font-black text-2xl text-yellow-300">
-                            UGX {Number(group.total || 0).toLocaleString()}
-                          </p>
-                          <p className="text-xs text-slate-500 mt-1">
-                            Customer balance
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="mt-5 bg-black/20 border border-white/5 rounded-2xl p-4">
-                        <div className="space-y-2">
-                          {group.orders.map((order) => (
-                            <div
-                              key={order.id}
-                              className="flex items-center justify-between text-sm"
-                            >
-                              <div className="flex items-center gap-2">
-                                <span className="text-white font-semibold">
-                                  {order.order_number}
+                              {hasMultipleOrders && (
+                                <span className="rounded-full bg-blue-100 px-2 py-1 text-[10px] font-black uppercase text-blue-700">
+                                  Combined
                                 </span>
-
-                                {order.status === "bill_printed" && (
-                                  <span className="text-[10px] bg-blue-500/10 text-blue-300 px-2 py-1 rounded-full border border-blue-500/20">
-                                    Bill Printed
-                                  </span>
-                                )}
-                              </div>
-
-                              <span className="font-black text-slate-200">
-                                UGX{" "}
-                                {Number(
-                                  order.balance || order.total || 0
-                                ).toLocaleString()}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-
-                        <div className="border-t border-white/10 mt-4 pt-4">
-                          <div className="flex items-center justify-between gap-4">
-                            <div>
-                              <p className="text-slate-400 text-xs">
-                                Amount Due
-                              </p>
-                              <p className="text-2xl font-black text-yellow-300 mt-1">
-                                UGX {Number(group.total || 0).toLocaleString()}
-                              </p>
+                              )}
                             </div>
 
-                            <button
-                              onClick={() => {
-                                setSelectedOrder(null);
-                                setSelectedTableBill(group);
-                                setPaymentMethod("cash");
-                                setReference("");
-                              }}
-                              className="bg-green-500 hover:bg-green-600 text-white px-5 py-3 rounded-2xl font-black"
-                            >
-                              Receive Payment
-                            </button>
+                            <p className="text-xs font-semibold text-slate-500 mt-1">
+                              Server: {group.server_name || "Staff"}
+                            </p>
                           </div>
+
+                          <div>
+                            <p className="text-xs uppercase font-black text-slate-400">
+                              Orders
+                            </p>
+                            <p className="font-black text-slate-950">
+                              {group.orders.length}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-xs uppercase font-black text-slate-400">
+                              Waiting
+                            </p>
+                            <p
+                              className={`font-black ${
+                                isDelayed ? "text-red-600" : "text-amber-600"
+                              }`}
+                            >
+                              {Number(group.waiting_minutes || 0)} min
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-xs uppercase font-black text-slate-400">
+                              Amount
+                            </p>
+                            <p className="font-black text-emerald-600">
+                              UGX {Number(group.total || 0).toLocaleString()}
+                            </p>
+                          </div>
+
+                          <button
+                            onClick={() => {
+                              setSelectedOrder(null);
+                              setSelectedTableBill(group);
+                              setPaymentMethod("cash");
+                              setReference("");
+                            }}
+                            className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-black text-white hover:bg-slate-800"
+                          >
+                            Open
+                          </button>
                         </div>
                       </div>
-                    </div>
-                  );
-                })
+                    );
+                  })}
+                </div>
               )}
             </div>
           </div>
 
-          <div className="bg-[#111827] border border-slate-800 rounded-3xl overflow-hidden">
-            <div className="p-6 border-b border-slate-800">
-              <h2 className="text-2xl font-black">Recent Payments</h2>
-              <p className="text-slate-400 text-sm mt-1">
+          <div className="rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div className="p-4 border-b border-slate-200">
+              <h2 className="text-2xl font-black text-slate-950">
+                Recent Payments
+              </h2>
+              <p className="text-slate-500 text-sm font-medium mt-1">
                 Latest bills closed by cashier
               </p>
             </div>
 
-            <div className="p-5 space-y-4 max-h-[520px] overflow-y-auto">
+            <div className="p-5 space-y-3 max-h-[620px] overflow-y-auto">
               {data.recent_payments.length === 0 ? (
-                <p className="text-slate-400">No payments received today.</p>
+                <div className="py-20 text-center font-black text-slate-400">
+                  No payments received today.
+                </div>
               ) : (
                 data.recent_payments.map((payment) => (
                   <div
                     key={payment.id}
-                    className="bg-[#0D1117] border border-slate-800 rounded-2xl p-4"
+                    className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0">
-                        <p className="font-black truncate">
+                        <p className="font-black text-slate-950 truncate">
                           {payment.table_name || "Takeaway"}
                         </p>
-                        <p className="text-sm text-slate-400 mt-1">
+                        <p className="mt-1 text-sm font-semibold text-slate-500">
                           {payment.order_number} • {payment.method}
                         </p>
                       </div>
 
-                      <p className="font-black text-green-400 shrink-0">
+                      <p className="shrink-0 font-black text-emerald-600">
                         UGX {Number(payment.amount || 0).toLocaleString()}
                       </p>
                     </div>
 
                     {payment.reference && (
-                      <p className="text-xs text-slate-500 mt-3 truncate">
+                      <p className="mt-3 truncate text-xs font-semibold text-slate-400">
                         Ref: {payment.reference}
                       </p>
                     )}
@@ -391,170 +375,137 @@ function CounterDashboardPage() {
             </div>
           </div>
         </section>
+
         {selectedTableBill && (
-          <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
-            <div className="w-full max-w-md bg-[#111827] border border-slate-700 rounded-3xl p-6">
-              <h2 className="text-2xl font-black">Receive Table Payment</h2>
+          <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+            <div className="w-full max-w-xl rounded-3xl bg-white shadow-xl overflow-hidden">
+              <div className="p-5 border-b border-slate-200 flex items-center justify-between">
+                <div>
+                  <p className="text-xs uppercase font-black text-slate-400">
+                    Receive Payment
+                  </p>
 
-              <p className="text-slate-400 mt-2">
-                {selectedTableBill.table_name} •{" "}
-                {selectedTableBill.orders.length} unpaid orders
-              </p>
-
-              <div className="mt-5 bg-[#0D1117] rounded-2xl p-4">
-                <p className="text-slate-400 text-sm">Combined Amount Due</p>
-                <p className="text-3xl font-black text-yellow-300 mt-2">
-                  UGX {Number(selectedTableBill.total || 0).toLocaleString()}
-                </p>
-              </div>
-
-              <div className="mt-5">
-                <label className="text-sm text-slate-400">Payment Method</label>
-
-                <div className="grid grid-cols-3 gap-3 mt-2">
-                  {[
-                    { value: "cash", label: "Cash" },
-                    { value: "mobile_money", label: "MoMo" },
-                    { value: "card", label: "Card" },
-                  ].map((method) => (
-                    <button
-                      key={method.value}
-                      type="button"
-                      onClick={() => setPaymentMethod(method.value)}
-                      className={`rounded-2xl py-4 font-bold border transition ${
-                        paymentMethod === method.value
-                          ? "bg-green-500 border-green-400 text-white"
-                          : "bg-[#0D1117] border-slate-700 text-slate-300 hover:border-green-500"
-                      }`}
-                    >
-                      {method.label}
-                    </button>
-                  ))}
+                  <h2 className="text-3xl font-black text-slate-950">
+                    {selectedTableBill.table_name}
+                  </h2>
                 </div>
-              </div>
 
-              <div className="mt-5">
-                <label className="text-sm text-slate-400">
-                  Reference / Transaction ID
-                </label>
-
-                <input
-                  value={reference}
-                  onChange={(e) => setReference(e.target.value)}
-                  placeholder={
-                    paymentMethod === "cash"
-                      ? "Optional for cash"
-                      : "Enter MoMo/Card transaction reference"
-                  }
-                  className="w-full mt-2 bg-[#0D1117] border border-slate-700 rounded-2xl px-4 py-3"
-                />
-              </div>
-
-              {error && (
-                <div className="mt-4 bg-red-500/10 border border-red-500 text-red-300 px-4 py-3 rounded-xl">
-                  {error}
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-3 mt-6">
                 <button
                   onClick={() => setSelectedTableBill(null)}
-                  className="bg-slate-700 hover:bg-slate-600 rounded-2xl py-3 font-bold"
+                  className="w-10 h-10 rounded-xl bg-slate-100 font-black"
                 >
-                  Cancel
+                  ×
                 </button>
+              </div>
+
+              <div className="p-5 space-y-5">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs uppercase font-black text-slate-400">
+                        Total Due
+                      </p>
+
+                      <h3 className="mt-2 text-4xl font-black text-emerald-600">
+                        UGX{" "}
+                        {Number(selectedTableBill.total || 0).toLocaleString()}
+                      </h3>
+                    </div>
+
+                    <div className="text-right">
+                      <p className="text-xs uppercase font-black text-slate-400">
+                        Orders
+                      </p>
+
+                      <p className="mt-2 text-2xl font-black text-slate-950">
+                        {selectedTableBill.orders.length}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-sm font-black text-slate-950 mb-3">
+                    Orders Included
+                  </p>
+
+                  <div className="rounded-2xl border border-slate-200 overflow-hidden">
+                    {selectedTableBill.orders.map((order) => (
+                      <div
+                        key={order.id}
+                        className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-100 last:border-b-0"
+                      >
+                        <div>
+                          <p className="font-black text-slate-950">
+                            {order.order_number}
+                          </p>
+
+                          <p className="text-xs font-semibold text-slate-500">
+                            {order.server_name}
+                          </p>
+                        </div>
+
+                        <p className="font-black text-emerald-600">
+                          UGX{" "}
+                          {Number(
+                            order.balance || order.total || 0
+                          ).toLocaleString()}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-sm font-black text-slate-950 mb-3">
+                    Payment Method
+                  </p>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    {["cash", "mobile_money", "card"].map((method) => (
+                      <button
+                        key={method}
+                        onClick={() => setPaymentMethod(method)}
+                        className={`h-12 rounded-2xl border text-sm font-black uppercase ${
+                          paymentMethod === method
+                            ? "bg-slate-950 border-slate-950 text-white"
+                            : "bg-white border-slate-200 text-slate-700"
+                        }`}
+                      >
+                        {method.replace("_", " ")}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {(paymentMethod === "mobile_money" ||
+                  paymentMethod === "card") && (
+                  <div>
+                    <p className="text-sm font-black text-slate-950 mb-2">
+                      Reference Number
+                    </p>
+
+                    <input
+                      value={reference}
+                      onChange={(e) => setReference(e.target.value)}
+                      placeholder="Transaction reference..."
+                      className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold outline-none"
+                    />
+                  </div>
+                )}
+
+                {error && (
+                  <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-black text-red-700">
+                    {error}
+                  </div>
+                )}
 
                 <button
+                  disabled={paying}
                   onClick={handleReceiveTablePayment}
-                  disabled={paying}
-                  className="bg-green-500 hover:bg-green-600 disabled:opacity-50 rounded-2xl py-3 font-bold"
+                  className="w-full h-14 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-lg font-black text-white"
                 >
-                  {paying ? "Processing..." : "Receive Full Payment"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-        {selectedOrder && (
-          <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
-            <div className="w-full max-w-md bg-[#111827] border border-slate-700 rounded-3xl p-6">
-              <h2 className="text-2xl font-black">Receive Payment</h2>
-
-              <p className="text-slate-400 mt-2">
-                {selectedOrder.table_name || "Takeaway"} •{" "}
-                {selectedOrder.order_number}
-              </p>
-
-              <div className="mt-5 bg-[#0D1117] rounded-2xl p-4">
-                <p className="text-slate-400 text-sm">Amount Due</p>
-                <p className="text-3xl font-black text-green-400 mt-2">
-                  UGX{" "}
-                  {Number(
-                    selectedOrder.balance || selectedOrder.total || 0
-                  ).toLocaleString()}
-                </p>
-              </div>
-              <div className="mt-5">
-                <label className="text-sm text-slate-400">Payment Method</label>
-
-                <div className="grid grid-cols-3 gap-3 mt-2">
-                  {[
-                    { value: "cash", label: "Cash" },
-                    { value: "mobile_money", label: "MoMo" },
-                    { value: "card", label: "Card" },
-                  ].map((method) => (
-                    <button
-                      key={method.value}
-                      type="button"
-                      onClick={() => setPaymentMethod(method.value)}
-                      className={`rounded-2xl py-4 font-bold border transition ${
-                        paymentMethod === method.value
-                          ? "bg-green-500 border-green-400 text-white"
-                          : "bg-[#0D1117] border-slate-700 text-slate-300 hover:border-green-500"
-                      }`}
-                    >
-                      {method.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mt-5">
-                <label className="text-sm text-slate-400">
-                  Reference / Transaction ID
-                </label>
-                <input
-                  value={reference}
-                  onChange={(e) => setReference(e.target.value)}
-                  placeholder={
-                    paymentMethod === "cash"
-                      ? "Optional for cash"
-                      : "Enter MoMo/Card transaction reference"
-                  }
-                  className="w-full mt-2 bg-[#0D1117] border border-slate-700 rounded-2xl px-4 py-3"
-                />
-              </div>
-
-              {error && (
-                <div className="mt-4 bg-red-500/10 border border-red-500 text-red-300 px-4 py-3 rounded-xl">
-                  {error}
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-3 mt-6">
-                <button
-                  onClick={() => setSelectedOrder(null)}
-                  className="bg-slate-700 hover:bg-slate-600 rounded-2xl py-3 font-bold"
-                >
-                  Cancel
-                </button>
-
-                <button
-                  onClick={handleReceivePayment}
-                  disabled={paying}
-                  className="bg-green-500 hover:bg-green-600 disabled:opacity-50 rounded-2xl py-3 font-bold"
-                >
-                  {paying ? "Processing..." : "Receive & Close Order"}
+                  {paying ? "Processing..." : "Confirm Payment"}
                 </button>
               </div>
             </div>
@@ -565,12 +516,12 @@ function CounterDashboardPage() {
   );
 }
 
-function StatCard({ title, value, note, accent = "text-white" }) {
+function StatCard({ title, value, note, accent = "text-slate-950" }) {
   return (
-    <div className="bg-[#111827] border border-slate-800 rounded-3xl p-6">
-      <p className="text-slate-400 text-sm">{title}</p>
-      <h2 className={`text-3xl font-black mt-3 ${accent}`}>{value}</h2>
-      <p className="text-slate-500 text-sm mt-2">{note}</p>
+    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+      <p className="text-xs font-black uppercase text-slate-400">{title}</p>
+      <h2 className={`mt-3 text-2xl font-black ${accent}`}>{value}</h2>
+      <p className="mt-2 text-sm font-semibold text-slate-500">{note}</p>
     </div>
   );
 }

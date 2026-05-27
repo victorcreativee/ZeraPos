@@ -429,21 +429,29 @@ function getCounterDashboardStats(userId) {
 
             db.all(
               `
-            SELECT
-              orders.id,
-              orders.order_number,
-              orders.total,
-              orders.balance,
-              orders.status,
-              orders.created_at,
-
-              ROUND(
-                (julianday('now') - julianday(orders.created_at)) * 24 * 60
-              ) AS waiting_minutes,
-
-              restaurant_tables.name AS table_name,
-              users.name AS server_name
-            FROM orders
+              SELECT
+                orders.id,
+                orders.order_number,
+                orders.table_id,
+                orders.server_id,
+                orders.total,
+                orders.balance,
+                orders.status,
+                orders.created_at,
+            
+                MIN(
+                  MAX(
+                    ROUND(
+                      (julianday('now') - julianday(orders.created_at)) * 24 * 60
+                    ),
+                    0
+                  ),
+                  999
+                ) AS waiting_minutes,
+            
+                restaurant_tables.name AS table_name,
+                users.name AS server_name
+              FROM orders
               LEFT JOIN restaurant_tables ON orders.table_id = restaurant_tables.id
               LEFT JOIN users ON orders.server_id = users.id
               WHERE orders.status IN ('open', 'sent', 'bill_printed')
