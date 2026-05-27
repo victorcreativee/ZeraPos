@@ -1,7 +1,14 @@
 import { useEffect, useState } from "react";
 import AppHeader from "../components/layout/AppHeader";
 import { getCounterDashboardStats } from "../api/reportsApi";
-import { payOrder, payTableOrders, printPaidReceipt } from "../api/ordersApi";
+import {
+  getOrderById,
+  payOrder,
+  payTableOrders,
+  printPaidReceipt,
+} from "../api/ordersApi";
+import { buildPaidReceipt } from "../utils/receiptTemplates";
+import { printReceiptWindow } from "../utils/printReceipt";
 
 function CounterDashboardPage() {
   const [data, setData] = useState({
@@ -22,24 +29,28 @@ function CounterDashboardPage() {
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [billFilter, setBillFilter] = useState("all");
   const [successMessage, setSuccessMessage] = useState("");
   const [lastPaidOrder, setLastPaidOrder] = useState(null);
+  const [lastPaidTablePayment, setLastPaidTablePayment] = useState(null);
+
+  async function loadDashboard() {
+    try {
+      const response = await getCounterDashboardStats();
+      setData(response.data);
+    } catch (error) {
+      console.log("Failed to load counter dashboard", error);
+    }
+  }
 
   useEffect(() => {
-    async function loadCounterStats() {
-      try {
-        const response = await getCounterDashboardStats();
-        setData(response.data);
-      } catch (error) {
-        console.log("Failed to load counter dashboard", error);
-      }
-    }
+    loadDashboard();
 
-    loadCounterStats();
+    const interval = setInterval(loadDashboard, 15000);
 
-    const interval = setInterval(loadCounterStats, 15000);
     return () => clearInterval(interval);
   }, []);
+
   async function handleReceivePayment() {
     if (!selectedOrder) return;
 
@@ -53,7 +64,9 @@ function CounterDashboardPage() {
         reference,
       });
 
-      setSuccessMessage(`${selectedOrder.order_number} paid successfully`);
+      setSuccessMessage(
+        `${selectedOrder.order_number} paid successfully. Receipt is ready.`
+      );
       setLastPaidOrder(selectedOrder);
       setSelectedOrder(null);
       setTimeout(() => {
@@ -61,8 +74,7 @@ function CounterDashboardPage() {
       }, 5000);
       setReference("");
 
-      const response = await getCounterDashboardStats();
-      setData(response.data);
+      await loadDashboard();
     } catch (err) {
       setError(err.response?.data?.message || "Payment failed");
     } finally {
@@ -76,20 +88,23 @@ function CounterDashboardPage() {
       setPaying(true);
       setError("");
 
-      await payTableOrders(selectedTableBill.table_id, {
+      const paymentResponse = await payTableOrders(selectedTableBill.table_id, {
         method: paymentMethod,
         reference,
       });
 
+      setLastPaidTablePayment(paymentResponse.data);
+
       setSuccessMessage(
-        `${selectedTableBill.table_name} payment received. Table is now ready if no other unpaid orders remain.`
+        `${selectedTableBill.table_name} fully paid. Receipt is ready.`
       );
 
       setSelectedTableBill(null);
+      setPaymentMethod("cash");
+      setLastPaidOrder(null);
       setReference("");
 
-      const response = await getCounterDashboardStats();
-      setData(response.data);
+      await loadDashboard();
     } catch (err) {
       setError(err.response?.data?.message || "Combined payment failed");
     } finally {
@@ -115,11 +130,18 @@ function CounterDashboardPage() {
       groups[key] = {
         table_id: order.table_id,
         table_name: order.table_name || "Takeaway",
-        server_name: order.server_name || "N/A",
+        server_names: [],
         orders: [],
         total: 0,
         waiting_minutes: 0,
       };
+    }
+
+    if (
+      order.server_name &&
+      !groups[key].server_names.includes(order.server_name)
+    ) {
+      groups[key].server_names.push(order.server_name);
     }
 
     groups[key].orders.push(order);
@@ -133,12 +155,35 @@ function CounterDashboardPage() {
   }, {});
 
   const openBillGroups = Object.values(groupedOpenBills);
+  const visibleOpenBillGroups = openBillGroups.filter((group) => {
+    if (billFilter === "delayed") {
+      return Number(group.waiting_minutes || 0) > 20;
+    }
+
+    if (billFilter === "combined") {
+      return group.orders.length > 1;
+    }
+
+    if (billFilter === "takeaway") {
+      return !group.table_id;
+    }
+
+    return true;
+  });
 
   async function handlePrintPaidReceipt(orderId) {
     try {
+      const orderResponse = await getOrderById(orderId);
+      const order = orderResponse.data || orderResponse;
+
+      const receiptHtml = buildPaidReceipt(order);
+      printReceiptWindow(`${order.order_number} Paid Receipt`, receiptHtml);
+
       await printPaidReceipt(orderId);
+
       setSuccessMessage("Paid receipt printed successfully");
       setLastPaidOrder(null);
+      setLastPaidTablePayment(null);
 
       setTimeout(() => {
         setSuccessMessage("");
@@ -168,10 +213,23 @@ function CounterDashboardPage() {
                 Print Paid Receipt
               </button>
             )}
+            {lastPaidTablePayment?.paid_orders?.length > 0 && (
+              <div className="flex items-center gap-2">
+                {lastPaidTablePayment.paid_orders.map((order) => (
+                  <button
+                    key={order.id}
+                    onClick={() => handlePrintPaidReceipt(order.id)}
+                    className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-black text-white"
+                  >
+                    Print {order.order_number}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
-        <section className="grid md:grid-cols-2 xl:grid-cols-5 gap-4">
+        <section className="grid md:grid-cols-2 xl:grid-cols-6 gap-3">
           <StatCard
             title="Open Bills"
             value={data.open_bills}
@@ -212,6 +270,12 @@ function CounterDashboardPage() {
             note="MoMo payments"
             accent="text-blue-600"
           />
+          <StatCard
+            title="Card"
+            value={`UGX ${Number(data.card_collected || 0).toLocaleString()}`}
+            note="Card payments"
+            accent="text-purple-600"
+          />
         </section>
 
         <section className="grid xl:grid-cols-[1.35fr_0.65fr] gap-5 min-h-[620px]">
@@ -228,7 +292,7 @@ function CounterDashboardPage() {
                 </div>
 
                 <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black uppercase text-amber-700">
-                  {openBillGroups.length} unpaid
+                  {visibleOpenBillGroups.length} unpaid
                 </span>
               </div>
 
@@ -238,27 +302,47 @@ function CounterDashboardPage() {
                 placeholder="Search table, order number, or waiter..."
                 className="mt-4 h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-900 outline-none focus:border-slate-400"
               />
+              <div className="mt-3 flex items-center gap-2 overflow-x-auto">
+                {[
+                  ["all", "All"],
+                  ["combined", "Combined Bills"],
+                  ["delayed", "Delayed"],
+                  ["takeaway", "Takeaway"],
+                ].map(([value, label]) => (
+                  <button
+                    key={value}
+                    onClick={() => setBillFilter(value)}
+                    className={`shrink-0 rounded-xl px-4 py-2 text-xs font-black ${
+                      billFilter === value
+                        ? "bg-slate-950 text-white"
+                        : "bg-slate-100 text-slate-700"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="p-3 max-h-[560px] overflow-y-auto">
-              {openBillGroups.length === 0 ? (
+              {visibleOpenBillGroups.length === 0 ? (
                 <div className="py-20 text-center font-black text-slate-400">
                   No open bills found.
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {openBillGroups.map((group) => {
+                  {visibleOpenBillGroups.map((group) => {
                     const isDelayed = Number(group.waiting_minutes || 0) > 20;
                     const hasMultipleOrders = group.orders.length > 1;
 
                     return (
                       <div
                         key={group.table_id || group.table_name}
-                        className={`rounded-2xl border bg-white px-4 py-3 shadow-sm hover:bg-slate-50 transition ${
+                        className={`rounded-xl border bg-white px-4 py-3 hover:bg-slate-50 transition ${
                           isDelayed ? "border-red-200" : "border-slate-200"
                         }`}
                       >
-                        <div className="grid grid-cols-[1.2fr_1fr_1fr_1fr_auto] gap-3 items-center">
+                        <div className="grid grid-cols-[1.4fr_90px_120px_150px_90px] gap-3 items-center">
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
                               <h3 className="font-black text-slate-950 truncate">
@@ -272,13 +356,14 @@ function CounterDashboardPage() {
                               )}
                             </div>
 
-                            <p className="text-xs font-semibold text-slate-500 mt-1">
-                              Server: {group.server_name || "Staff"}
+                            <p className="text-xs font-semibold text-slate-500 mt-1 truncate">
+                              Waiter:{" "}
+                              {group.server_names?.join(", ") || "Staff"}
                             </p>
                           </div>
 
                           <div>
-                            <p className="text-xs uppercase font-black text-slate-400">
+                            <p className="text-[10px] uppercase font-black text-slate-400">
                               Orders
                             </p>
                             <p className="font-black text-slate-950">
@@ -287,7 +372,7 @@ function CounterDashboardPage() {
                           </div>
 
                           <div>
-                            <p className="text-xs uppercase font-black text-slate-400">
+                            <p className="text-[10px] uppercase font-black text-slate-400">
                               Waiting
                             </p>
                             <p
@@ -300,8 +385,8 @@ function CounterDashboardPage() {
                           </div>
 
                           <div>
-                            <p className="text-xs uppercase font-black text-slate-400">
-                              Amount
+                            <p className="text-[10px] uppercase font-black text-slate-400">
+                              Amount Due
                             </p>
                             <p className="font-black text-emerald-600">
                               UGX {Number(group.total || 0).toLocaleString()}
@@ -310,14 +395,20 @@ function CounterDashboardPage() {
 
                           <button
                             onClick={() => {
-                              setSelectedOrder(null);
-                              setSelectedTableBill(group);
                               setPaymentMethod("cash");
                               setReference("");
+
+                              if (group.table_id) {
+                                setSelectedOrder(null);
+                                setSelectedTableBill(group);
+                              } else {
+                                setSelectedTableBill(null);
+                                setSelectedOrder(group.orders[0]);
+                              }
                             }}
                             className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-black text-white hover:bg-slate-800"
                           >
-                            Open
+                            Pay
                           </button>
                         </div>
                       </div>
@@ -347,11 +438,11 @@ function CounterDashboardPage() {
                 data.recent_payments.map((payment) => (
                   <div
                     key={payment.id}
-                    className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                    className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0">
-                        <p className="font-black text-slate-950 truncate">
+                        <p className="text-sm font-black text-slate-950 truncate">
                           {payment.table_name || "Takeaway"}
                         </p>
                         <p className="mt-1 text-sm font-semibold text-slate-500">
@@ -388,6 +479,10 @@ function CounterDashboardPage() {
                   <h2 className="text-3xl font-black text-slate-950">
                     {selectedTableBill.table_name}
                   </h2>
+                  <p className="text-sm font-semibold text-slate-500 mt-1">
+                    Waiter:{" "}
+                    {selectedTableBill.server_names?.join(", ") || "Staff"}
+                  </p>
                 </div>
 
                 <button
@@ -445,12 +540,26 @@ function CounterDashboardPage() {
                           </p>
                         </div>
 
-                        <p className="font-black text-emerald-600">
-                          UGX{" "}
-                          {Number(
-                            order.balance || order.total || 0
-                          ).toLocaleString()}
-                        </p>
+                        <div className="flex items-center gap-3">
+                          <p className="font-black text-emerald-600">
+                            UGX{" "}
+                            {Number(
+                              order.balance || order.total || 0
+                            ).toLocaleString()}
+                          </p>
+
+                          <button
+                            onClick={() => {
+                              setSelectedTableBill(null);
+                              setSelectedOrder(order);
+                              setPaymentMethod("cash");
+                              setReference("");
+                            }}
+                            className="rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white"
+                          >
+                            Pay This
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -505,7 +614,102 @@ function CounterDashboardPage() {
                   onClick={handleReceiveTablePayment}
                   className="w-full h-14 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-lg font-black text-white"
                 >
-                  {paying ? "Processing..." : "Confirm Payment"}
+                  {paying ? "Processing..." : "Pay Full Table"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {selectedOrder && (
+          <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+            <div className="w-full max-w-lg rounded-3xl bg-white shadow-xl overflow-hidden">
+              <div className="p-5 border-b border-slate-200 flex items-center justify-between">
+                <div>
+                  <p className="text-xs uppercase font-black text-slate-400">
+                    Pay Individual Order
+                  </p>
+
+                  <h2 className="text-3xl font-black text-slate-950">
+                    {selectedOrder.order_number}
+                  </h2>
+
+                  <p className="text-sm font-semibold text-slate-500 mt-1">
+                    {selectedOrder.table_name || "Takeaway"}
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => setSelectedOrder(null)}
+                  className="w-10 h-10 rounded-xl bg-slate-100 font-black"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="p-5 space-y-5">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                  <p className="text-xs uppercase font-black text-slate-400">
+                    Amount Due
+                  </p>
+
+                  <h3 className="mt-2 text-4xl font-black text-emerald-600">
+                    UGX{" "}
+                    {Number(
+                      selectedOrder.balance || selectedOrder.total || 0
+                    ).toLocaleString()}
+                  </h3>
+                </div>
+
+                <div>
+                  <p className="text-sm font-black text-slate-950 mb-3">
+                    Payment Method
+                  </p>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    {["cash", "mobile_money", "card"].map((method) => (
+                      <button
+                        key={method}
+                        onClick={() => setPaymentMethod(method)}
+                        className={`h-12 rounded-2xl border text-sm font-black uppercase ${
+                          paymentMethod === method
+                            ? "bg-slate-950 border-slate-950 text-white"
+                            : "bg-white border-slate-200 text-slate-700"
+                        }`}
+                      >
+                        {method.replace("_", " ")}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {(paymentMethod === "mobile_money" ||
+                  paymentMethod === "card") && (
+                  <div>
+                    <p className="text-sm font-black text-slate-950 mb-2">
+                      Reference Number
+                    </p>
+
+                    <input
+                      value={reference}
+                      onChange={(e) => setReference(e.target.value)}
+                      placeholder="Transaction reference..."
+                      className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold outline-none"
+                    />
+                  </div>
+                )}
+
+                {error && (
+                  <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-black text-red-700">
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  disabled={paying}
+                  onClick={handleReceivePayment}
+                  className="w-full h-14 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-lg font-black text-white"
+                >
+                  {paying ? "Processing..." : "Pay This Order"}
                 </button>
               </div>
             </div>

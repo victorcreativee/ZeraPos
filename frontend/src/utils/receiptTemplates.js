@@ -126,85 +126,6 @@ export function buildCustomerBill(order) {
     </p>
   `;
 }
-export function buildPaidReceipt(order, paymentMethod = "Cash") {
-  return `
-    <div class="center">
-      <h2>ZERA POS</h2>
-      <p class="small muted">Official Payment Receipt</p>
-      <p class="tiny muted">Demo Bar & Restaurant</p>
-    </div>
-
-    <div class="solid-line"></div>
-
-    <div class="row">
-      <span class="bold">Receipt No</span>
-      <span>${order.order_number}</span>
-    </div>
-
-    <div class="row">
-      <span>Table</span>
-      <span>${order.table_name || "Takeaway"}</span>
-    </div>
-
-    <div class="row">
-      <span>Server</span>
-      <span>${order.server_name || "-"}</span>
-    </div>
-
-    <div class="row">
-      <span>Date</span>
-      <span>${new Date().toLocaleString()}</span>
-    </div>
-
-    <div class="line"></div>
-
-    <div class="row bold small">
-      <span>ITEM</span>
-      <span>TOTAL</span>
-    </div>
-
-    <div class="line"></div>
-
-    ${order.items
-      .map(
-        (item) => `
-        <div class="row">
-          <span>
-            ${item.product_name}<br/>
-            <span class="tiny muted">
-              ${formatMoney(item.price)} x ${item.quantity}
-            </span>
-          </span>
-
-          <span>${formatMoney(item.total_price)}</span>
-        </div>
-      `
-      )
-      .join("")}
-
-    <div class="solid-line"></div>
-
-    <div class="row total">
-      <span>TOTAL PAID</span>
-      <span>${formatMoney(order.total)}</span>
-    </div>
-
-    <div class="row">
-      <span>Payment</span>
-      <span>${paymentMethod}</span>
-    </div>
-
-    <div class="status-paid">
-      PAID
-    </div>
-
-    <div class="line"></div>
-
-    <p class="center small">
-      Thank you for visiting.
-    </p>
-  `;
-}
 
 export function buildPreparationTicket(order, ticketType) {
   const filteredItems = order.items.filter(
@@ -316,5 +237,112 @@ export function buildCombinedCustomerBill(bill) {
     <div class="line"></div>
 
     <p class="center small">Thank you for dining with us.</p>
+  `;
+}
+
+export function buildPaidReceipt(order) {
+  const items = order.items || [];
+
+  return `
+    <html>
+      <head>
+        <title>Paid Receipt</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            width: 280px;
+            margin: 0 auto;
+            padding: 12px;
+            color: #111827;
+          }
+
+          .center { text-align: center; }
+          .bold { font-weight: 800; }
+          .line { border-top: 1px dashed #999; margin: 10px 0; }
+
+          .row {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            font-size: 13px;
+            margin: 5px 0;
+          }
+
+          .small {
+            font-size: 11px;
+            color: #555;
+          }
+
+          .total {
+            font-size: 18px;
+            font-weight: 900;
+          }
+        </style>
+      </head>
+
+      <body>
+        <div class="center">
+          <h3 style="margin: 0;">Demo Bar & Restaurant</h3>
+          <p class="small" style="margin: 4px 0;">Official Paid Receipt</p>
+        </div>
+
+        <div class="line"></div>
+
+        <div class="row">
+          <span>Receipt:</span>
+          <span class="bold">${order.order_number || "-"}</span>
+        </div>
+
+        <div class="row">
+          <span>Table:</span>
+          <span>${order.table_name || "Takeaway"}</span>
+        </div>
+
+        <div class="row">
+          <span>Server:</span>
+          <span>${order.server_name || "-"}</span>
+        </div>
+
+        <div class="row">
+          <span>Status:</span>
+          <span class="bold">PAID</span>
+        </div>
+
+        <div class="line"></div>
+
+        ${items
+          .map(
+            (item) => `
+              <div class="row">
+                <span>${item.product_name || item.name} x${item.quantity}</span>
+                <span>UGX ${Number(
+                  item.total_price || item.line_total || 0
+                ).toLocaleString()}</span>
+              </div>
+            `
+          )
+          .join("")}
+
+        <div class="line"></div>
+
+        <div class="row total">
+          <span>Total</span>
+          <span>UGX ${Number(order.total || 0).toLocaleString()}</span>
+        </div>
+
+        <div class="line"></div>
+
+        <p class="center small">
+          Thank you for your payment.<br/>
+          Served by Zera POS
+        </p>
+
+        <script>
+          window.onload = function() {
+            window.print();
+          };
+        </script>
+      </body>
+    </html>
   `;
 }

@@ -798,6 +798,11 @@ function payTableOrders({ table_id, method, reference = null, received_by }) {
                     orders_paid: orders.length,
                     amount: totalAmount,
                     method,
+                    paid_orders: orders.map((order) => ({
+                      id: order.id,
+                      order_number: order.order_number,
+                      total: Number(order.balance || order.total || 0),
+                    })),
                   });
                 });
               }
