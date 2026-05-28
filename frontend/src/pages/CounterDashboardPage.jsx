@@ -202,19 +202,19 @@ function CounterDashboardPage() {
 
       <main className="p-5 space-y-5">
         {successMessage && (
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-700 font-black flex items-center justify-between">
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-700 font-black flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <span>{successMessage}</span>
 
             {lastPaidOrder && (
               <button
                 onClick={() => handlePrintPaidReceipt(lastPaidOrder.id)}
-                className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-black text-white"
+                className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-black text-white"
               >
                 Print Paid Receipt
               </button>
             )}
             {lastPaidTablePayment?.paid_orders?.length > 0 && (
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {lastPaidTablePayment.paid_orders.map((order) => (
                   <button
                     key={order.id}
