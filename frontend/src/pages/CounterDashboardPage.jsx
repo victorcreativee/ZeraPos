@@ -278,7 +278,7 @@ function CounterDashboardPage() {
           />
         </section>
 
-        <section className="grid xl:grid-cols-[1.35fr_0.65fr] gap-5 min-h-[620px]">
+        <section className="grid xl:grid-cols-[1.45fr_0.55fr] gap-4 min-h-[620px]">
           <div className="rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
             <div className="p-5 border-b border-slate-200">
               <div className="flex items-center justify-between gap-4">
@@ -429,7 +429,7 @@ function CounterDashboardPage() {
               </p>
             </div>
 
-            <div className="p-5 space-y-3 max-h-[620px] overflow-y-auto">
+            <div className="p-4 space-y-2 max-h-[620px] overflow-y-auto">
               {data.recent_payments.length === 0 ? (
                 <div className="py-20 text-center font-black text-slate-400">
                   No payments received today.
@@ -469,11 +469,11 @@ function CounterDashboardPage() {
 
         {selectedTableBill && (
           <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-            <div className="w-full max-w-xl rounded-3xl bg-white shadow-xl overflow-hidden">
+            <div className="w-full max-w-lg rounded-3xl bg-white shadow-xl overflow-hidden">
               <div className="p-5 border-b border-slate-200 flex items-center justify-between">
                 <div>
                   <p className="text-xs uppercase font-black text-slate-400">
-                    Receive Payment
+                    Full Table Payment
                   </p>
 
                   <h2 className="text-3xl font-black text-slate-950">
@@ -493,7 +493,7 @@ function CounterDashboardPage() {
                 </button>
               </div>
 
-              <div className="p-5 space-y-5">
+              <div className="p-5 space-y-4">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
                   <div className="flex items-center justify-between">
                     <div>
@@ -501,7 +501,7 @@ function CounterDashboardPage() {
                         Total Due
                       </p>
 
-                      <h3 className="mt-2 text-4xl font-black text-emerald-600">
+                      <h3 className="mt-1 text-3xl font-black text-emerald-600">
                         UGX{" "}
                         {Number(selectedTableBill.total || 0).toLocaleString()}
                       </h3>
@@ -528,7 +528,7 @@ function CounterDashboardPage() {
                     {selectedTableBill.orders.map((order) => (
                       <div
                         key={order.id}
-                        className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-100 last:border-b-0"
+                        className="flex items-center justify-between gap-3 px-4 py-2 border-b border-slate-100 last:border-b-0"
                       >
                         <div>
                           <p className="font-black text-slate-950">
@@ -634,7 +634,8 @@ function CounterDashboardPage() {
                   </h2>
 
                   <p className="text-sm font-semibold text-slate-500 mt-1">
-                    {selectedOrder.table_name || "Takeaway"}
+                    {selectedOrder.table_name || "Takeaway"} • Waiter:{" "}
+                    {selectedOrder.server_name || "Staff"}
                   </p>
                 </div>
 
@@ -646,13 +647,13 @@ function CounterDashboardPage() {
                 </button>
               </div>
 
-              <div className="p-5 space-y-5">
+              <div className="p-5 space-y-4">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
                   <p className="text-xs uppercase font-black text-slate-400">
                     Amount Due
                   </p>
 
-                  <h3 className="mt-2 text-4xl font-black text-emerald-600">
+                  <h3 className="mt-1 text-3xl font-black text-emerald-600">
                     UGX{" "}
                     {Number(
                       selectedOrder.balance || selectedOrder.total || 0
@@ -709,7 +710,7 @@ function CounterDashboardPage() {
                   onClick={handleReceivePayment}
                   className="w-full h-14 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-lg font-black text-white"
                 >
-                  {paying ? "Processing..." : "Pay This Order"}
+                  {paying ? "Processing..." : "Confirm Order Payment"}
                 </button>
               </div>
             </div>
@@ -722,10 +723,10 @@ function CounterDashboardPage() {
 
 function StatCard({ title, value, note, accent = "text-slate-950" }) {
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-      <p className="text-xs font-black uppercase text-slate-400">{title}</p>
-      <h2 className={`mt-3 text-2xl font-black ${accent}`}>{value}</h2>
-      <p className="mt-2 text-sm font-semibold text-slate-500">{note}</p>
+    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+      <p className="text-[10px] font-black uppercase text-slate-400">{title}</p>
+      <h2 className={`mt-2 text-xl font-black ${accent}`}>{value}</h2>
+      <p className="mt-1 text-xs font-semibold text-slate-500">{note}</p>
     </div>
   );
 }
