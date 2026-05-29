@@ -24,7 +24,9 @@ function TableSelector({ tables, selectedTable, onSelectTable }) {
             selectedTable?.id === table.id || (!selectedTable && isTakeaway);
 
           const openOrdersCount = Number(table.open_orders_count || 0);
-          const unpaidTotal = Number(table.unpaid_total || 0);
+          const unpaidTotal = Number(
+            table.unpaid_total || table.open_balance || 0
+          );
 
           const isOccupied =
             openOrdersCount > 0 ||

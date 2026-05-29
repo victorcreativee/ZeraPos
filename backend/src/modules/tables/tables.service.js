@@ -23,7 +23,7 @@ function getTables() {
             END
           ),
           0
-        ) AS unpaid_total
+      ) AS unpaid_total
 
       FROM restaurant_tables
       LEFT JOIN orders
