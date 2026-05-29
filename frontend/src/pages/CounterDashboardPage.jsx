@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import AppHeader from "../components/layout/AppHeader";
-import { getCounterDashboardStats } from "../api/reportsApi";
+import {
+  getCounterDashboardStats,
+  getCashierShiftSummary,
+} from "../api/reportsApi";
 import {
   getOrderById,
   payOrder,
@@ -22,6 +25,7 @@ function CounterDashboardPage() {
     open_orders: [],
     recent_payments: [],
   });
+
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [selectedTableBill, setSelectedTableBill] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState("cash");
@@ -33,11 +37,18 @@ function CounterDashboardPage() {
   const [successMessage, setSuccessMessage] = useState("");
   const [lastPaidOrder, setLastPaidOrder] = useState(null);
   const [lastPaidTablePayment, setLastPaidTablePayment] = useState(null);
+  const [shiftSummary, setShiftSummary] = useState(null);
+  const [activePanel, setActivePanel] = useState("payments");
 
   async function loadDashboard() {
     try {
-      const response = await getCounterDashboardStats();
-      setData(response.data);
+      const [dashboardResponse, shiftResponse] = await Promise.all([
+        getCounterDashboardStats(),
+        getCashierShiftSummary(),
+      ]);
+
+      setData(dashboardResponse.data);
+      setShiftSummary(shiftResponse.data);
     } catch (error) {
       console.log("Failed to load counter dashboard", error);
     }
@@ -47,7 +58,6 @@ function CounterDashboardPage() {
     loadDashboard();
 
     const interval = setInterval(loadDashboard, 15000);
-
     return () => clearInterval(interval);
   }, []);
 
@@ -67,20 +77,24 @@ function CounterDashboardPage() {
       setSuccessMessage(
         `${selectedOrder.order_number} paid successfully. Receipt is ready.`
       );
+
       setLastPaidOrder(selectedOrder);
+      setLastPaidTablePayment(null);
       setSelectedOrder(null);
-      setTimeout(() => {
-        setSuccessMessage("");
-      }, 5000);
       setReference("");
 
       await loadDashboard();
+
+      setTimeout(() => {
+        setSuccessMessage("");
+      }, 5000);
     } catch (err) {
       setError(err.response?.data?.message || "Payment failed");
     } finally {
       setPaying(false);
     }
   }
+
   async function handleReceiveTablePayment() {
     if (!selectedTableBill) return;
 
@@ -94,6 +108,7 @@ function CounterDashboardPage() {
       });
 
       setLastPaidTablePayment(paymentResponse.data);
+      setLastPaidOrder(null);
 
       setSuccessMessage(
         `${selectedTableBill.table_name} fully paid. Receipt is ready.`
@@ -101,14 +116,39 @@ function CounterDashboardPage() {
 
       setSelectedTableBill(null);
       setPaymentMethod("cash");
-      setLastPaidOrder(null);
       setReference("");
 
       await loadDashboard();
+
+      setTimeout(() => {
+        setSuccessMessage("");
+      }, 5000);
     } catch (err) {
       setError(err.response?.data?.message || "Combined payment failed");
     } finally {
       setPaying(false);
+    }
+  }
+
+  async function handlePrintPaidReceipt(orderId) {
+    try {
+      const orderResponse = await getOrderById(orderId);
+      const order = orderResponse.data || orderResponse;
+
+      const receiptHtml = buildPaidReceipt(order);
+      printReceiptWindow(`${order.order_number} Paid Receipt`, receiptHtml);
+
+      await printPaidReceipt(orderId);
+
+      setSuccessMessage("Paid receipt printed successfully");
+      setLastPaidOrder(null);
+      setLastPaidTablePayment(null);
+
+      setTimeout(() => {
+        setSuccessMessage("");
+      }, 3000);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to print paid receipt");
     }
   }
 
@@ -121,6 +161,7 @@ function CounterDashboardPage() {
       order.server_name?.toLowerCase().includes(keyword)
     );
   });
+
   const groupedOpenBills = filteredOpenOrders.reduce((groups, order) => {
     const key = order.table_id
       ? `table-${order.table_id}`
@@ -155,6 +196,7 @@ function CounterDashboardPage() {
   }, {});
 
   const openBillGroups = Object.values(groupedOpenBills);
+
   const visibleOpenBillGroups = openBillGroups.filter((group) => {
     if (billFilter === "delayed") {
       return Number(group.waiting_minutes || 0) > 20;
@@ -171,27 +213,6 @@ function CounterDashboardPage() {
     return true;
   });
 
-  async function handlePrintPaidReceipt(orderId) {
-    try {
-      const orderResponse = await getOrderById(orderId);
-      const order = orderResponse.data || orderResponse;
-
-      const receiptHtml = buildPaidReceipt(order);
-      printReceiptWindow(`${order.order_number} Paid Receipt`, receiptHtml);
-
-      await printPaidReceipt(orderId);
-
-      setSuccessMessage("Paid receipt printed successfully");
-      setLastPaidOrder(null);
-      setLastPaidTablePayment(null);
-
-      setTimeout(() => {
-        setSuccessMessage("");
-      }, 3000);
-    } catch (err) {
-      setError(err.response?.data?.message || "Failed to print paid receipt");
-    }
-  }
   return (
     <div className="min-h-screen bg-slate-100 text-slate-950">
       <AppHeader
@@ -213,6 +234,7 @@ function CounterDashboardPage() {
                 Print Paid Receipt
               </button>
             )}
+
             {lastPaidTablePayment?.paid_orders?.length > 0 && (
               <div className="flex flex-wrap items-center gap-2">
                 {lastPaidTablePayment.paid_orders.map((order) => (
@@ -252,14 +274,12 @@ function CounterDashboardPage() {
               data.total_collected_today || 0
             ).toLocaleString()}`}
             note="Cashier collection"
-            accent="text-slate-950"
           />
 
           <StatCard
             title="Cash"
             value={`UGX ${Number(data.cash_collected || 0).toLocaleString()}`}
             note="Cash payments"
-            accent="text-slate-950"
           />
 
           <StatCard
@@ -270,6 +290,7 @@ function CounterDashboardPage() {
             note="MoMo payments"
             accent="text-blue-600"
           />
+
           <StatCard
             title="Card"
             value={`UGX ${Number(data.card_collected || 0).toLocaleString()}`}
@@ -278,8 +299,43 @@ function CounterDashboardPage() {
           />
         </section>
 
-        <section className="grid xl:grid-cols-[1.45fr_0.55fr] gap-4 min-h-[620px]">
-          <div className="rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div className="flex gap-2 overflow-x-auto">
+          <button
+            onClick={() => setActivePanel("payments")}
+            className={`rounded-xl px-4 py-2 text-sm font-black ${
+              activePanel === "payments"
+                ? "bg-slate-950 text-white"
+                : "bg-white border border-slate-200 text-slate-700"
+            }`}
+          >
+            Open Bills
+          </button>
+
+          <button
+            onClick={() => setActivePanel("shift")}
+            className={`rounded-xl px-4 py-2 text-sm font-black ${
+              activePanel === "shift"
+                ? "bg-slate-950 text-white"
+                : "bg-white border border-slate-200 text-slate-700"
+            }`}
+          >
+            Shift Summary
+          </button>
+
+          <button
+            onClick={() => setActivePanel("history")}
+            className={`rounded-xl px-4 py-2 text-sm font-black ${
+              activePanel === "history"
+                ? "bg-slate-950 text-white"
+                : "bg-white border border-slate-200 text-slate-700"
+            }`}
+          >
+            Recent Payments
+          </button>
+        </div>
+
+        {activePanel === "payments" && (
+          <section className="rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden min-h-[620px]">
             <div className="p-5 border-b border-slate-200">
               <div className="flex items-center justify-between gap-4">
                 <div>
@@ -302,6 +358,7 @@ function CounterDashboardPage() {
                 placeholder="Search table, order number, or waiter..."
                 className="mt-4 h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-900 outline-none focus:border-slate-400"
               />
+
               <div className="mt-3 flex items-center gap-2 overflow-x-auto">
                 {[
                   ["all", "All"],
@@ -417,19 +474,116 @@ function CounterDashboardPage() {
                 </div>
               )}
             </div>
-          </div>
+          </section>
+        )}
 
-          <div className="rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-            <div className="p-4 border-b border-slate-200">
-              <h2 className="text-2xl font-black text-slate-950">
-                Recent Payments
-              </h2>
-              <p className="text-slate-500 text-sm font-medium mt-1">
-                Latest bills closed by cashier
-              </p>
+        {activePanel === "shift" && shiftSummary && (
+          <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-2xl font-black text-slate-950">
+              Cashier Shift Summary
+            </h2>
+
+            <p className="mt-1 text-sm font-semibold text-slate-500">
+              Current business day collections
+            </p>
+
+            <div className="mt-5 grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+              <ShiftCard
+                label="Total Collected"
+                value={`UGX ${Number(
+                  shiftSummary.summary?.total_collected || 0
+                ).toLocaleString()}`}
+                accent="text-emerald-600"
+              />
+
+              <ShiftCard
+                label="Cash"
+                value={`UGX ${Number(
+                  shiftSummary.summary?.cash_total || 0
+                ).toLocaleString()}`}
+              />
+
+              <ShiftCard
+                label="Mobile Money"
+                value={`UGX ${Number(
+                  shiftSummary.summary?.mobile_money_total || 0
+                ).toLocaleString()}`}
+                accent="text-blue-600"
+              />
+
+              <ShiftCard
+                label="Card"
+                value={`UGX ${Number(
+                  shiftSummary.summary?.card_total || 0
+                ).toLocaleString()}`}
+                accent="text-purple-600"
+              />
+
+              <ShiftCard
+                label="Open Bills"
+                value={`UGX ${Number(
+                  shiftSummary.open_bills?.open_bill_amount || 0
+                ).toLocaleString()}`}
+                accent="text-amber-600"
+              />
+
+              <ShiftCard
+                label="Payments"
+                value={shiftSummary.summary?.payments_count || 0}
+              />
             </div>
 
-            <div className="p-4 space-y-2 max-h-[620px] overflow-y-auto">
+            <div className="mt-6 rounded-2xl border border-slate-200 overflow-hidden">
+              <div className="grid grid-cols-[1fr_120px_140px_160px] gap-3 bg-slate-50 px-4 py-3 text-xs font-black uppercase text-slate-400">
+                <span>Bill</span>
+                <span>Method</span>
+                <span>Amount</span>
+                <span>Time</span>
+              </div>
+
+              <div className="max-h-[360px] overflow-y-auto">
+                {shiftSummary.payments?.length === 0 ? (
+                  <div className="py-10 text-center text-sm font-black text-slate-400">
+                    No payments in this shift.
+                  </div>
+                ) : (
+                  shiftSummary.payments?.map((payment) => (
+                    <div
+                      key={payment.id}
+                      className="grid grid-cols-[1fr_120px_140px_160px] gap-3 border-t border-slate-100 px-4 py-3 text-sm font-semibold"
+                    >
+                      <span>
+                        {payment.table_name || "Takeaway"} •{" "}
+                        {payment.order_number}
+                      </span>
+                      <span className="capitalize">
+                        {payment.method?.replace("_", " ")}
+                      </span>
+                      <span className="font-black text-emerald-600">
+                        UGX {Number(payment.amount || 0).toLocaleString()}
+                      </span>
+                      <span className="text-slate-500">
+                        {payment.created_at}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {activePanel === "history" && (
+          <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-2xl font-black text-slate-950">
+              Recent Payments
+            </h2>
+
+            <p className="mt-1 text-sm font-semibold text-slate-500">
+              Latest bills closed by cashier
+            </p>
+
+            <div className="mt-5 space-y-2 max-h-[620px] overflow-y-auto">
               {data.recent_payments.length === 0 ? (
                 <div className="py-20 text-center font-black text-slate-400">
                   No payments received today.
@@ -464,8 +618,8 @@ function CounterDashboardPage() {
                 ))
               )}
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         {selectedTableBill && (
           <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
@@ -479,6 +633,7 @@ function CounterDashboardPage() {
                   <h2 className="text-3xl font-black text-slate-950">
                     {selectedTableBill.table_name}
                   </h2>
+
                   <p className="text-sm font-semibold text-slate-500 mt-1">
                     Waiter:{" "}
                     {selectedTableBill.server_names?.join(", ") || "Staff"}
@@ -565,49 +720,14 @@ function CounterDashboardPage() {
                   </div>
                 </div>
 
-                <div>
-                  <p className="text-sm font-black text-slate-950 mb-3">
-                    Payment Method
-                  </p>
+                <PaymentMethodSelector
+                  paymentMethod={paymentMethod}
+                  setPaymentMethod={setPaymentMethod}
+                  reference={reference}
+                  setReference={setReference}
+                />
 
-                  <div className="grid grid-cols-3 gap-3">
-                    {["cash", "mobile_money", "card"].map((method) => (
-                      <button
-                        key={method}
-                        onClick={() => setPaymentMethod(method)}
-                        className={`h-12 rounded-2xl border text-sm font-black uppercase ${
-                          paymentMethod === method
-                            ? "bg-slate-950 border-slate-950 text-white"
-                            : "bg-white border-slate-200 text-slate-700"
-                        }`}
-                      >
-                        {method.replace("_", " ")}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {(paymentMethod === "mobile_money" ||
-                  paymentMethod === "card") && (
-                  <div>
-                    <p className="text-sm font-black text-slate-950 mb-2">
-                      Reference Number
-                    </p>
-
-                    <input
-                      value={reference}
-                      onChange={(e) => setReference(e.target.value)}
-                      placeholder="Transaction reference..."
-                      className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold outline-none"
-                    />
-                  </div>
-                )}
-
-                {error && (
-                  <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-black text-red-700">
-                    {error}
-                  </div>
-                )}
+                {error && <ErrorBox message={error} />}
 
                 <button
                   disabled={paying}
@@ -620,6 +740,7 @@ function CounterDashboardPage() {
             </div>
           </div>
         )}
+
         {selectedOrder && (
           <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
             <div className="w-full max-w-lg rounded-3xl bg-white shadow-xl overflow-hidden">
@@ -661,49 +782,14 @@ function CounterDashboardPage() {
                   </h3>
                 </div>
 
-                <div>
-                  <p className="text-sm font-black text-slate-950 mb-3">
-                    Payment Method
-                  </p>
+                <PaymentMethodSelector
+                  paymentMethod={paymentMethod}
+                  setPaymentMethod={setPaymentMethod}
+                  reference={reference}
+                  setReference={setReference}
+                />
 
-                  <div className="grid grid-cols-3 gap-3">
-                    {["cash", "mobile_money", "card"].map((method) => (
-                      <button
-                        key={method}
-                        onClick={() => setPaymentMethod(method)}
-                        className={`h-12 rounded-2xl border text-sm font-black uppercase ${
-                          paymentMethod === method
-                            ? "bg-slate-950 border-slate-950 text-white"
-                            : "bg-white border-slate-200 text-slate-700"
-                        }`}
-                      >
-                        {method.replace("_", " ")}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {(paymentMethod === "mobile_money" ||
-                  paymentMethod === "card") && (
-                  <div>
-                    <p className="text-sm font-black text-slate-950 mb-2">
-                      Reference Number
-                    </p>
-
-                    <input
-                      value={reference}
-                      onChange={(e) => setReference(e.target.value)}
-                      placeholder="Transaction reference..."
-                      className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold outline-none"
-                    />
-                  </div>
-                )}
-
-                {error && (
-                  <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-black text-red-700">
-                    {error}
-                  </div>
-                )}
+                {error && <ErrorBox message={error} />}
 
                 <button
                   disabled={paying}
@@ -721,12 +807,75 @@ function CounterDashboardPage() {
   );
 }
 
+function PaymentMethodSelector({
+  paymentMethod,
+  setPaymentMethod,
+  reference,
+  setReference,
+}) {
+  return (
+    <>
+      <div>
+        <p className="text-sm font-black text-slate-950 mb-3">Payment Method</p>
+
+        <div className="grid grid-cols-3 gap-3">
+          {["cash", "mobile_money", "card"].map((method) => (
+            <button
+              key={method}
+              onClick={() => setPaymentMethod(method)}
+              className={`h-12 rounded-2xl border text-sm font-black uppercase ${
+                paymentMethod === method
+                  ? "bg-slate-950 border-slate-950 text-white"
+                  : "bg-white border-slate-200 text-slate-700"
+              }`}
+            >
+              {method.replace("_", " ")}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {(paymentMethod === "mobile_money" || paymentMethod === "card") && (
+        <div>
+          <p className="text-sm font-black text-slate-950 mb-2">
+            Reference Number
+          </p>
+
+          <input
+            value={reference}
+            onChange={(e) => setReference(e.target.value)}
+            placeholder="Transaction reference..."
+            className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold outline-none"
+          />
+        </div>
+      )}
+    </>
+  );
+}
+
+function ErrorBox({ message }) {
+  return (
+    <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-black text-red-700">
+      {message}
+    </div>
+  );
+}
+
 function StatCard({ title, value, note, accent = "text-slate-950" }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
       <p className="text-[10px] font-black uppercase text-slate-400">{title}</p>
       <h2 className={`mt-2 text-xl font-black ${accent}`}>{value}</h2>
       <p className="mt-1 text-xs font-semibold text-slate-500">{note}</p>
+    </div>
+  );
+}
+
+function ShiftCard({ label, value, accent = "text-slate-950" }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+      <p className="text-[10px] font-black uppercase text-slate-400">{label}</p>
+      <p className={`mt-2 text-lg font-black ${accent}`}>{value}</p>
     </div>
   );
 }

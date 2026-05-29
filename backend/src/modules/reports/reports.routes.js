@@ -28,4 +28,10 @@ router.get(
   allowRoles("admin", "manager", "cashier"),
   reportsController.getCounterDashboardStats
 );
+router.get(
+  "/cashier-shift-summary",
+  requireAuth,
+  allowRoles("admin", "manager", "cashier"),
+  reportsController.getCashierShiftSummary
+);
 module.exports = router;

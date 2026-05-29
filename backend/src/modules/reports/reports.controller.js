@@ -78,10 +78,32 @@ async function getCounterDashboardStats(req, res) {
     });
   }
 }
+
+async function getCashierShiftSummary(req, res) {
+  try {
+    const date = req.query.date;
+
+    const summary = await reportsService.getCashierShiftSummary(
+      req.user.id,
+      date
+    );
+
+    res.json({
+      success: true,
+      data: summary,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}
 module.exports = {
   getMyDashboardStats,
   getMyOrdersHistory,
   getManagerDashboardStats,
   getManagerRestaurantDashboard,
   getCounterDashboardStats,
+  getCashierShiftSummary,
 };

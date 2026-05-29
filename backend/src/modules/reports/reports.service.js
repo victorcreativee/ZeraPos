@@ -510,10 +510,86 @@ function getCounterDashboardStats(userId) {
     );
   });
 }
+
+function getCashierShiftSummary(userId, date) {
+  const businessDay = getBusinessDayRangeUtc(date);
+
+  return new Promise((resolve, reject) => {
+    db.get(
+      `
+      SELECT
+        COUNT(*) AS payments_count,
+        COALESCE(SUM(amount), 0) AS total_collected,
+        COALESCE(SUM(CASE WHEN method = 'cash' THEN amount ELSE 0 END), 0) AS cash_total,
+        COALESCE(SUM(CASE WHEN method = 'mobile_money' THEN amount ELSE 0 END), 0) AS mobile_money_total,
+        COALESCE(SUM(CASE WHEN method = 'card' THEN amount ELSE 0 END), 0) AS card_total
+      FROM payments
+      WHERE received_by = ?
+      AND created_at >= ?
+      AND created_at < ?
+      `,
+      [userId, businessDay.start, businessDay.end],
+      (summaryErr, summary) => {
+        if (summaryErr) return reject(summaryErr);
+
+        db.all(
+          `
+          SELECT
+            payments.id,
+            payments.order_id,
+            payments.method,
+            payments.amount,
+            payments.reference,
+            payments.created_at,
+            orders.order_number,
+            restaurant_tables.name AS table_name,
+            users.name AS server_name
+          FROM payments
+          LEFT JOIN orders ON payments.order_id = orders.id
+          LEFT JOIN restaurant_tables ON orders.table_id = restaurant_tables.id
+          LEFT JOIN users ON orders.server_id = users.id
+          WHERE payments.received_by = ?
+          AND payments.created_at >= ?
+          AND payments.created_at < ?
+          ORDER BY payments.id DESC
+          `,
+          [userId, businessDay.start, businessDay.end],
+          (paymentsErr, payments) => {
+            if (paymentsErr) return reject(paymentsErr);
+
+            db.get(
+              `
+              SELECT
+                COUNT(*) AS open_bills,
+                COALESCE(SUM(balance), 0) AS open_bill_amount
+              FROM orders
+              WHERE status IN ('open', 'sent', 'bill_printed')
+              `,
+              [],
+              (openErr, openBills) => {
+                if (openErr) return reject(openErr);
+
+                resolve({
+                  date: date || null,
+                  business_day_start: businessDay.start,
+                  business_day_end: businessDay.end,
+                  summary: summary || {},
+                  open_bills: openBills || {},
+                  payments: payments || [],
+                });
+              }
+            );
+          }
+        );
+      }
+    );
+  });
+}
 module.exports = {
   getMyDashboardStats,
   getMyOrdersHistory,
   getManagerDashboardStats,
   getManagerRestaurantDashboard,
   getCounterDashboardStats,
+  getCashierShiftSummary,
 };

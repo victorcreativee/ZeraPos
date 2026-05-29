@@ -23,3 +23,10 @@ export async function getCounterDashboardStats() {
   const response = await apiClient.get("/reports/counter-dashboard");
   return response.data;
 }
+export async function getCashierShiftSummary(date = "") {
+  const query = date ? `?date=${date}` : "";
+  const response = await apiClient.get(
+    `/reports/cashier-shift-summary${query}`
+  );
+  return response.data;
+}
