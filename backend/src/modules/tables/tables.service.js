@@ -6,12 +6,28 @@ function getTables() {
       `
       SELECT
         restaurant_tables.*,
-        COUNT(orders.id) AS open_orders_count,
-        COALESCE(SUM(orders.balance), 0) AS open_balance
+
+        COUNT(
+          CASE 
+            WHEN orders.status NOT IN ('paid', 'cancelled') 
+            THEN orders.id 
+          END
+        ) AS open_orders_count,
+
+        COALESCE(
+          SUM(
+            CASE 
+              WHEN orders.status NOT IN ('paid', 'cancelled') 
+              THEN orders.balance 
+              ELSE 0 
+            END
+          ),
+          0
+        ) AS unpaid_total
+
       FROM restaurant_tables
       LEFT JOIN orders
         ON orders.table_id = restaurant_tables.id
-        AND orders.status NOT IN ('paid', 'cancelled')
       GROUP BY restaurant_tables.id
       ORDER BY restaurant_tables.id ASC
       `,

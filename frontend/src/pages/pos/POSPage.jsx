@@ -15,6 +15,7 @@ import WaiterSummaryBar from "../../components/pos/WaiterSummaryBar";
 import { getAuthUser } from "../../utils/authSession";
 import { printReceiptWindow } from "../../utils/printReceipt";
 import { buildCombinedCustomerBill } from "../../utils/receiptTemplates";
+import { getMyDashboardStats } from "../../api/reportsApi";
 
 function POSPage() {
   const user = getAuthUser();
@@ -33,13 +34,24 @@ function POSPage() {
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
-  const [todaySales] = useState(221000);
-  const [tablesServed] = useState(5);
+  const [waiterStats, setWaiterStats] = useState({
+    my_sales_today: 0,
+    my_tables_served_today: 0,
+    my_open_orders: 0,
+  });
 
   function openPreviousOrders() {
     window.location.href = "/orders";
   }
 
+  async function loadWaiterStats() {
+    try {
+      const response = await getMyDashboardStats();
+      setWaiterStats(response.data || {});
+    } catch (err) {
+      console.log("Failed to load waiter stats", err);
+    }
+  }
   async function loadPOSData(categoryId = selectedCategory) {
     try {
       setLoading(true);
@@ -76,6 +88,7 @@ function POSPage() {
 
   useEffect(() => {
     loadPOSData(null);
+    loadWaiterStats();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -180,6 +193,7 @@ function POSPage() {
       );
 
       await loadPOSData(selectedCategory);
+      await loadWaiterStats();
 
       if (selectedTable?.id) {
         await loadTableBill(selectedTable.id);
@@ -215,6 +229,7 @@ function POSPage() {
       );
 
       await loadPOSData(selectedCategory);
+      await loadWaiterStats();
       await loadTableBill(selectedTable.id);
 
       setTimeout(() => setSuccessMessage(""), 3000);
@@ -238,9 +253,9 @@ function POSPage() {
       <main className="h-[calc(100vh-78px)] p-3 grid xl:grid-cols-[minmax(0,1fr)_430px] gap-3 overflow-hidden">
         <section className="min-h-0 flex flex-col gap-3 overflow-hidden">
           <WaiterSummaryBar
-            todaySales={221000}
-            tablesServed={5}
-            openOrders={7}
+            todaySales={waiterStats.my_sales_today || 0}
+            tablesServed={waiterStats.my_tables_served_today || 0}
+            openOrders={waiterStats.my_open_orders || 0}
             onOpenPreviousOrders={openPreviousOrders}
           />
 
