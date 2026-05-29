@@ -5,7 +5,11 @@ import {
   getTables,
   getTableActiveBill,
 } from "../../api/posApi";
-import { createOrder, printCombinedTableBill } from "../../api/ordersApi";
+import {
+  createOrder,
+  printCombinedTableBill,
+  printOrderTicket,
+} from "../../api/ordersApi";
 import AppHeader from "../../components/layout/AppHeader";
 import CategoryTabs from "../../components/pos/CategoryTabs";
 import ProductGrid from "../../components/pos/ProductGrid";
@@ -14,7 +18,10 @@ import ActiveTablePanel from "../../components/pos/ActiveTablePanel";
 import WaiterSummaryBar from "../../components/pos/WaiterSummaryBar";
 import { getAuthUser } from "../../utils/authSession";
 import { printReceiptWindow } from "../../utils/printReceipt";
-import { buildCombinedCustomerBill } from "../../utils/receiptTemplates";
+import {
+  buildCombinedCustomerBill,
+  buildPreparationTicket,
+} from "../../utils/receiptTemplates";
 import { getMyDashboardStats } from "../../api/reportsApi";
 
 function POSPage() {
@@ -28,6 +35,10 @@ function POSPage() {
   const [selectedTable, setSelectedTable] = useState(null);
   const [activeTableBill, setActiveTableBill] = useState(null);
   const [cartItems, setCartItems] = useState([]);
+  const [lastCreatedOrder, setLastCreatedOrder] = useState(null);
+  const [showTicketModal, setShowTicketModal] = useState(false);
+  const [printedKitchenTicket, setPrintedKitchenTicket] = useState(false);
+  const [printedBarTicket, setPrintedBarTicket] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [savingOrder, setSavingOrder] = useState(false);
@@ -165,7 +176,29 @@ function POSPage() {
   function handleClear() {
     setCartItems([]);
   }
+  async function printPreparationTickets(orderId, ticketTarget = "both") {
+    const response = await printOrderTicket(orderId, "preparation_ticket");
+    const order = response.data;
 
+    if (ticketTarget === "kitchen" || ticketTarget === "both") {
+      const kitchenTicket = buildPreparationTicket(order, "kitchen");
+
+      if (kitchenTicket) {
+        printReceiptWindow(
+          `${order.order_number} Kitchen Ticket`,
+          kitchenTicket
+        );
+      }
+    }
+
+    if (ticketTarget === "bar" || ticketTarget === "both") {
+      const barTicket = buildPreparationTicket(order, "bar");
+
+      if (barTicket) {
+        printReceiptWindow(`${order.order_number} Bar Ticket`, barTicket);
+      }
+    }
+  }
   async function handleSaveOrder() {
     if (cartItems.length === 0) return;
 
@@ -185,6 +218,11 @@ function POSPage() {
       const createdOrder = response.data;
 
       setCartItems([]);
+
+      setLastCreatedOrder(createdOrder);
+      setShowTicketModal(true);
+      setPrintedKitchenTicket(false);
+      setPrintedBarTicket(false);
 
       setSuccessMessage(
         `${createdOrder.order_number} sent for ${
@@ -301,6 +339,90 @@ function POSPage() {
           />
         </section>
       </main>
+      {showTicketModal && lastCreatedOrder && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-3xl bg-white shadow-xl overflow-hidden">
+            <div className="p-5 border-b border-slate-200">
+              <p className="text-xs uppercase font-black text-slate-400">
+                Order Sent
+              </p>
+
+              <h2 className="text-2xl font-black text-slate-950 mt-1">
+                {lastCreatedOrder.order_number}
+              </h2>
+
+              <p className="text-sm font-semibold text-slate-500 mt-1">
+                Print kitchen or bar preparation tickets if this business uses
+                paper tickets.
+              </p>
+
+              <div className="mt-3 flex gap-2">
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-black ${
+                    printedKitchenTicket
+                      ? "bg-emerald-100 text-emerald-700"
+                      : "bg-slate-100 text-slate-500"
+                  }`}
+                >
+                  Kitchen {printedKitchenTicket ? "printed ✓" : "not printed"}
+                </span>
+
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-black ${
+                    printedBarTicket
+                      ? "bg-emerald-100 text-emerald-700"
+                      : "bg-slate-100 text-slate-500"
+                  }`}
+                >
+                  Bar {printedBarTicket ? "printed ✓" : "not printed"}
+                </span>
+              </div>
+            </div>
+
+            <div className="p-5 space-y-3">
+              <button
+                onClick={async () => {
+                  await printPreparationTickets(lastCreatedOrder.id, "kitchen");
+                  setPrintedKitchenTicket(true);
+                }}
+                className="w-full h-12 rounded-2xl bg-slate-950 text-white font-black"
+              >
+                Print Kitchen Ticket
+              </button>
+
+              <button
+                onClick={async () => {
+                  await printPreparationTickets(lastCreatedOrder.id, "bar");
+                  setPrintedBarTicket(true);
+                }}
+                className="w-full h-12 rounded-2xl bg-slate-950 text-white font-black"
+              >
+                Print Bar Ticket
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowTicketModal(false);
+                  setLastCreatedOrder(null);
+                }}
+                className="w-full h-12 rounded-2xl bg-slate-950 text-white font-black"
+              >
+                Done
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowTicketModal(false);
+                  setLastCreatedOrder(null);
+                }}
+                className="w-full h-12 rounded-2xl bg-slate-100 text-slate-800 font-black"
+              >
+                Skip Printing
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
