@@ -10,7 +10,10 @@ import {
   payTableOrders,
   printPaidReceipt,
 } from "../api/ordersApi";
-import { buildPaidReceipt } from "../utils/receiptTemplates";
+import {
+  buildCombinedPaidReceipt,
+  buildPaidReceipt,
+} from "../utils/receiptTemplates";
 import { printReceiptWindow } from "../utils/printReceipt";
 
 function CounterDashboardPage() {
@@ -39,12 +42,15 @@ function CounterDashboardPage() {
   const [lastPaidTablePayment, setLastPaidTablePayment] = useState(null);
   const [shiftSummary, setShiftSummary] = useState(null);
   const [activePanel, setActivePanel] = useState("payments");
+  const [shiftDate, setShiftDate] = useState("");
+  const [closedBillSearch, setClosedBillSearch] = useState("");
+  const cashierReceiptMode = "combined";
 
   async function loadDashboard() {
     try {
       const [dashboardResponse, shiftResponse] = await Promise.all([
         getCounterDashboardStats(),
-        getCashierShiftSummary(),
+        getCashierShiftSummary(shiftDate),
       ]);
 
       setData(dashboardResponse.data);
@@ -59,7 +65,7 @@ function CounterDashboardPage() {
 
     const interval = setInterval(loadDashboard, 15000);
     return () => clearInterval(interval);
-  }, []);
+  }, [shiftDate]);
 
   async function handleReceivePayment() {
     if (!selectedOrder) return;
@@ -152,6 +158,40 @@ function CounterDashboardPage() {
     }
   }
 
+  async function handleReprintCombinedClosedBill(group) {
+    try {
+      const orderResponses = await Promise.all(
+        group.payments.map((payment) => getOrderById(payment.order_id))
+      );
+
+      const orders = orderResponses.map(
+        (response) => response.data || response
+      );
+
+      const combinedPayment = {
+        table: {
+          name: group.table_name,
+        },
+        orders,
+        items: orders.flatMap((order) => order.items || []),
+        amount: group.total,
+        method: group.method,
+        reference: group.reference,
+      };
+
+      const receiptHtml = buildCombinedPaidReceipt(combinedPayment);
+
+      printReceiptWindow(`${group.table_name} Paid Receipt`, receiptHtml);
+
+      setSuccessMessage("Combined paid bill reprinted successfully");
+
+      setTimeout(() => {
+        setSuccessMessage("");
+      }, 3000);
+    } catch (err) {
+      setError("Failed to reprint combined paid bill");
+    }
+  }
   const filteredOpenOrders = data.open_orders.filter((order) => {
     const keyword = searchTerm.toLowerCase();
 
@@ -212,6 +252,52 @@ function CounterDashboardPage() {
 
     return true;
   });
+  const recentClosedBillGroups = Object.values(
+    (shiftSummary?.payments || []).reduce((groups, payment) => {
+      const key = [
+        payment.table_name || "Takeaway",
+        payment.method || "cash",
+        payment.reference || "no-reference",
+        payment.created_at,
+      ].join("-");
+
+      if (!groups[key]) {
+        groups[key] = {
+          table_name: payment.table_name || "Takeaway",
+          method: payment.method,
+          reference: payment.reference,
+          server_names: [],
+          payments: [],
+          total: 0,
+          latest_time: payment.created_at,
+        };
+      }
+
+      if (
+        payment.server_name &&
+        !groups[key].server_names.includes(payment.server_name)
+      ) {
+        groups[key].server_names.push(payment.server_name);
+      }
+
+      groups[key].payments.push(payment);
+      groups[key].total += Number(payment.amount || 0);
+
+      return groups;
+    }, {})
+  );
+
+  const visibleClosedBillGroups = recentClosedBillGroups.filter((group) => {
+    const keyword = closedBillSearch.toLowerCase();
+
+    return (
+      group.table_name?.toLowerCase().includes(keyword) ||
+      group.server_names.join(", ").toLowerCase().includes(keyword) ||
+      group.payments.some((payment) =>
+        payment.order_number?.toLowerCase().includes(keyword)
+      )
+    );
+  });
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-950">
@@ -237,15 +323,41 @@ function CounterDashboardPage() {
 
             {lastPaidTablePayment?.paid_orders?.length > 0 && (
               <div className="flex flex-wrap items-center gap-2">
-                {lastPaidTablePayment.paid_orders.map((order) => (
+                {(cashierReceiptMode === "combined" ||
+                  cashierReceiptMode === "both") && (
                   <button
-                    key={order.id}
-                    onClick={() => handlePrintPaidReceipt(order.id)}
-                    className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-black text-white"
+                    onClick={() =>
+                      handleReprintCombinedClosedBill({
+                        table_name: lastPaidTablePayment.table?.name || "Table",
+                        payments: lastPaidTablePayment.paid_orders.map(
+                          (order) => ({
+                            id: order.id,
+                            order_id: order.id,
+                            order_number: order.order_number,
+                          })
+                        ),
+                        total: lastPaidTablePayment.amount,
+                        method: lastPaidTablePayment.method,
+                        reference: lastPaidTablePayment.reference,
+                      })
+                    }
+                    className="bg-emerald-600 px-4 py-2 text-sm font-black text-white"
                   >
-                    Print {order.order_number}
+                    Print Paid Bill
                   </button>
-                ))}
+                )}
+
+                {(cashierReceiptMode === "multiple" ||
+                  cashierReceiptMode === "both") &&
+                  lastPaidTablePayment.paid_orders.map((order) => (
+                    <button
+                      key={order.id}
+                      onClick={() => handlePrintPaidReceipt(order.id)}
+                      className="bg-slate-950 px-4 py-2 text-sm font-black text-white"
+                    >
+                      Print {order.order_number}
+                    </button>
+                  ))}
               </div>
             )}
           </div>
@@ -479,13 +591,24 @@ function CounterDashboardPage() {
 
         {activePanel === "shift" && shiftSummary && (
           <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-2xl font-black text-slate-950">
-              Cashier Shift Summary
-            </h2>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <div>
+                <h2 className="text-2xl font-black text-slate-950">
+                  Cashier Shift Summary
+                </h2>
 
-            <p className="mt-1 text-sm font-semibold text-slate-500">
-              Current business day collections
-            </p>
+                <p className="mt-1 text-sm font-semibold text-slate-500">
+                  View cashier collections by date and reprint paid receipts
+                </p>
+              </div>
+
+              <input
+                type="date"
+                value={shiftDate}
+                onChange={(e) => setShiftDate(e.target.value)}
+                className="h-11 rounded-xl border border-slate-200 px-3 text-sm font-bold"
+              />
+            </div>
 
             <div className="mt-5 grid md:grid-cols-2 xl:grid-cols-3 gap-4">
               <ShiftCard
@@ -534,11 +657,12 @@ function CounterDashboardPage() {
             </div>
 
             <div className="mt-6 rounded-2xl border border-slate-200 overflow-hidden">
-              <div className="grid grid-cols-[1fr_120px_140px_160px] gap-3 bg-slate-50 px-4 py-3 text-xs font-black uppercase text-slate-400">
+              <div className="grid grid-cols-[1fr_120px_140px_160px_110px] gap-3 bg-slate-50 px-4 py-3 text-xs font-black uppercase text-slate-400">
                 <span>Bill</span>
                 <span>Method</span>
                 <span>Amount</span>
                 <span>Time</span>
+                <span>Action</span>
               </div>
 
               <div className="max-h-[360px] overflow-y-auto">
@@ -550,7 +674,7 @@ function CounterDashboardPage() {
                   shiftSummary.payments?.map((payment) => (
                     <div
                       key={payment.id}
-                      className="grid grid-cols-[1fr_120px_140px_160px] gap-3 border-t border-slate-100 px-4 py-3 text-sm font-semibold"
+                      className="grid grid-cols-[1fr_120px_140px_160px_110px] gap-3 border-t border-slate-100 px-4 py-3 text-sm font-semibold"
                     >
                       <span>
                         {payment.table_name || "Takeaway"} •{" "}
@@ -565,6 +689,12 @@ function CounterDashboardPage() {
                       <span className="text-slate-500">
                         {payment.created_at}
                       </span>
+                      <button
+                        onClick={() => handlePrintPaidReceipt(payment.order_id)}
+                        className="rounded-lg bg-slate-950 px-3 py-2 text-xs font-black text-white"
+                      >
+                        Reprint
+                      </button>
                     </div>
                   ))
                 )}
@@ -572,48 +702,79 @@ function CounterDashboardPage() {
             </div>
           </section>
         )}
-
         {activePanel === "history" && (
-          <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-2xl font-black text-slate-950">
-              Recent Payments
-            </h2>
+          <section className="border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-200 px-4 py-3">
+              <h2 className="text-lg font-black text-slate-950">
+                Closed Bills
+              </h2>
 
-            <p className="mt-1 text-sm font-semibold text-slate-500">
-              Latest bills closed by cashier
-            </p>
+              <p className="text-sm font-semibold text-slate-500">
+                Paid bills grouped by table or takeaway
+              </p>
+              <div className="mt-3 flex flex-col gap-2 md:flex-row">
+                <input
+                  type="date"
+                  value={shiftDate}
+                  onChange={(e) => setShiftDate(e.target.value)}
+                  className="h-10 border border-slate-300 px-3 text-sm font-semibold"
+                />
 
-            <div className="mt-5 space-y-2 max-h-[620px] overflow-y-auto">
-              {data.recent_payments.length === 0 ? (
-                <div className="py-20 text-center font-black text-slate-400">
-                  No payments received today.
+                <input
+                  value={closedBillSearch}
+                  onChange={(e) => setClosedBillSearch(e.target.value)}
+                  placeholder="Search table, waiter, or order number..."
+                  className="h-10 flex-1 border border-slate-300 px-3 text-sm font-semibold"
+                />
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <div className="grid min-w-[820px] grid-cols-[1.1fr_1.2fr_90px_150px_160px_150px] border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-black uppercase text-slate-500">
+                <span>Bill</span>
+                <span>Waiter</span>
+                <span>Orders</span>
+                <span>Total</span>
+                <span>Time</span>
+                <span>Action</span>
+              </div>
+
+              {visibleClosedBillGroups.length === 0 ? (
+                <div className="py-16 text-center text-sm font-black text-slate-400">
+                  No closed bills found today.
                 </div>
               ) : (
-                data.recent_payments.map((payment) => (
+                visibleClosedBillGroups.map((group) => (
                   <div
-                    key={payment.id}
-                    className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
+                    key={`${group.table_name}-${group.latest_time}`}
+                    className="grid min-w-[820px] grid-cols-[1.1fr_1.2fr_90px_150px_160px_150px] items-center border-b border-slate-100 px-4 py-3 text-sm"
                   >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <p className="text-sm font-black text-slate-950 truncate">
-                          {payment.table_name || "Takeaway"}
-                        </p>
-                        <p className="mt-1 text-sm font-semibold text-slate-500">
-                          {payment.order_number} • {payment.method}
-                        </p>
-                      </div>
+                    <span className="font-black text-slate-950">
+                      {group.table_name}
+                    </span>
 
-                      <p className="shrink-0 font-black text-emerald-600">
-                        UGX {Number(payment.amount || 0).toLocaleString()}
-                      </p>
-                    </div>
+                    <span className="font-semibold text-slate-600">
+                      {group.server_names.join(", ") || "Staff"}
+                    </span>
 
-                    {payment.reference && (
-                      <p className="mt-3 truncate text-xs font-semibold text-slate-400">
-                        Ref: {payment.reference}
-                      </p>
-                    )}
+                    <span className="font-black text-slate-700">
+                      {group.payments.length}
+                    </span>
+
+                    <span className="font-black text-emerald-600">
+                      UGX {Number(group.total || 0).toLocaleString()}
+                    </span>
+
+                    <span className="font-semibold text-slate-500">
+                      {group.latest_time}
+                    </span>
+
+                    <button
+                      onClick={() => handleReprintCombinedClosedBill(group)}
+                      className="bg-slate-950 px-3 py-2 text-xs font-black text-white"
+                    >
+                      Reprint Paid Bill
+                    </button>
                   </div>
                 ))
               )}

@@ -222,6 +222,23 @@ async function getBarQueue(req, res) {
     });
   }
 }
+async function getCombinedTableBill(req, res) {
+  try {
+    const tableId = req.params.tableId;
+
+    const bill = await ordersService.getCombinedTableBill(tableId);
+
+    res.json({
+      success: true,
+      data: bill,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}
 async function printCombinedTableBill(req, res) {
   try {
     const tableId = req.params.tableId;
@@ -284,4 +301,5 @@ module.exports = {
   getBarQueue,
   printCombinedTableBill,
   payTableOrders,
+  getCombinedTableBill,
 };

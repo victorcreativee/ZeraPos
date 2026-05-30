@@ -259,3 +259,64 @@ export function buildPaidReceipt(order, paymentMethod = "Cash") {
     <p class="center small">Thank you for visiting.</p>
   `;
 }
+export function buildCombinedPaidReceipt(payment) {
+  const orders = payment.orders || [];
+  const items = payment.items || [];
+  const paymentMethod = payment.method
+    ? payment.method.replace("_", " ").toUpperCase()
+    : "CASH";
+
+  return `
+    <div class="center">
+      <h2>DEMO BAR & RESTAURANT</h2>
+      <p class="small bold">COMBINED PAYMENT RECEIPT</p>
+    </div>
+
+    <div class="solid-line"></div>
+
+    <div class="row">
+      <span>Table</span>
+      <span>${payment.table?.name || "Table"}</span>
+    </div>
+
+    <div class="row">
+      <span>Orders</span>
+      <span>${orders.map((order) => order.order_number).join(", ")}</span>
+    </div>
+
+    <div class="row">
+      <span>Method</span>
+      <span>${paymentMethod}</span>
+    </div>
+
+    <div class="line"></div>
+
+    ${items
+      .map(
+        (item) => `
+        <div class="row">
+          <span>${item.product_name}<br/>
+            <span class="tiny muted">
+              ${item.quantity} x UGX ${Number(
+          item.unit_price || 0
+        ).toLocaleString()}
+            </span>
+          </span>
+          <span>UGX ${Number(item.total_price || 0).toLocaleString()}</span>
+        </div>
+      `
+      )
+      .join("")}
+
+    <div class="solid-line"></div>
+
+    <div class="row total">
+      <span>TOTAL PAID</span>
+      <span>UGX ${Number(payment.amount || 0).toLocaleString()}</span>
+    </div>
+
+    <div class="status-paid">PAID</div>
+
+    <p class="center small">Thank you for visiting.</p>
+  `;
+}

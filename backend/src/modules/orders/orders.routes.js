@@ -5,6 +5,12 @@ const { requireAuth, allowRoles } = require("../../middleware/auth.middleware");
 const router = express.Router();
 
 router.get("/", requireAuth, ordersController.getOrders);
+router.get(
+  "/tables/:tableId/combined-bill",
+  requireAuth,
+  allowRoles("admin", "manager", "cashier"),
+  ordersController.getCombinedTableBill
+);
 router.post(
   "/tables/:tableId/print-combined-bill",
   requireAuth,

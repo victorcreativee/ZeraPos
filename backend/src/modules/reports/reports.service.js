@@ -298,14 +298,15 @@ function getManagerRestaurantDashboard() {
     db.get(
       `
       SELECT
-        COALESCE(SUM(CASE WHEN status = 'paid' THEN total ELSE 0 END), 0) AS today_revenue,
+        COALESCE(SUM(CASE WHEN orders.status = 'paid' THEN orders.total ELSE 0 END), 0) AS today_sales,
+        COALESCE(SUM(CASE WHEN orders.status IN ('open', 'sent', 'bill_printed') THEN orders.balance ELSE 0 END), 0) AS open_bill_amount,
+        COUNT(CASE WHEN orders.status = 'paid' THEN 1 END) AS paid_orders,
+        COUNT(CASE WHEN orders.status IN ('open', 'sent', 'bill_printed') THEN 1 END) AS open_bills,
         COUNT(*) AS orders_today,
-        COUNT(CASE WHEN status = 'paid' THEN 1 END) AS paid_orders,
-        COUNT(CASE WHEN status NOT IN ('paid', 'cancelled') THEN 1 END) AS open_orders,
-        COALESCE(AVG(CASE WHEN status = 'paid' THEN total END), 0) AS average_ticket
+        COALESCE(AVG(CASE WHEN orders.status = 'paid' THEN orders.total END), 0) AS average_ticket
       FROM orders
-      WHERE created_at >= ?
-      AND created_at < ?
+      WHERE orders.created_at >= ?
+      AND orders.created_at < ?
       `,
       [businessDay.start, businessDay.end],
       (summaryErr, summary) => {
@@ -317,16 +318,17 @@ function getManagerRestaurantDashboard() {
             restaurant_tables.id,
             restaurant_tables.name,
             restaurant_tables.status,
-            orders.id AS order_id,
-            orders.total,
-            orders.status AS order_status,
-            users.name AS server_name
+            COUNT(orders.id) AS open_orders_count,
+            COALESCE(SUM(orders.balance), 0) AS unpaid_total,
+            MAX(orders.created_at) AS latest_order_time,
+            GROUP_CONCAT(DISTINCT users.name) AS waiter_names
           FROM restaurant_tables
-          LEFT JOIN orders 
+          LEFT JOIN orders
             ON orders.table_id = restaurant_tables.id
-            AND orders.status NOT IN ('paid', 'cancelled')
-          LEFT JOIN users 
+            AND orders.status IN ('open', 'sent', 'bill_printed')
+          LEFT JOIN users
             ON orders.server_id = users.id
+          GROUP BY restaurant_tables.id
           ORDER BY restaurant_tables.id ASC
           `,
           [],
@@ -340,16 +342,17 @@ function getManagerRestaurantDashboard() {
                 users.name,
                 COALESCE(SUM(CASE WHEN orders.status = 'paid' THEN orders.total ELSE 0 END), 0) AS total_sales,
                 COUNT(CASE WHEN orders.status = 'paid' THEN 1 END) AS paid_orders,
-                COUNT(CASE WHEN orders.status NOT IN ('paid', 'cancelled') THEN 1 END) AS open_orders,
+                COUNT(CASE WHEN orders.status IN ('open', 'sent', 'bill_printed') THEN 1 END) AS open_orders,
                 COUNT(DISTINCT orders.table_id) AS tables_served
               FROM users
               LEFT JOIN orders
                 ON orders.server_id = users.id
                 AND orders.created_at >= ?
                 AND orders.created_at < ?
-              WHERE users.role = 'server'
+              WHERE users.role IN ('server', 'waiter')
               GROUP BY users.id
               ORDER BY total_sales DESC
+              LIMIT 5
               `,
               [businessDay.start, businessDay.end],
               (waitersErr, waiters) => {
@@ -358,31 +361,77 @@ function getManagerRestaurantDashboard() {
                 db.all(
                   `
                   SELECT
-                    orders.id,
-                    orders.order_number,
-                    orders.total,
-                    orders.status,
-                    orders.created_at,
-                    restaurant_tables.name AS table_name,
-                    users.name AS server_name
-                  FROM orders
-                  LEFT JOIN restaurant_tables ON orders.table_id = restaurant_tables.id
-                  LEFT JOIN users ON orders.server_id = users.id
+                    order_items.product_name,
+                    SUM(order_items.quantity) AS quantity_sold,
+                    SUM(order_items.total_price) AS total_sales
+                  FROM order_items
+                  INNER JOIN orders ON order_items.order_id = orders.id
                   WHERE orders.created_at >= ?
                   AND orders.created_at < ?
-                  ORDER BY orders.id DESC
-                  LIMIT 10
+                  AND orders.status != 'cancelled'
+                  GROUP BY order_items.product_name
+                  ORDER BY quantity_sold DESC
+                  LIMIT 8
                   `,
                   [businessDay.start, businessDay.end],
-                  (recentErr, recentOrders) => {
-                    if (recentErr) return reject(recentErr);
+                  (itemsErr, topItems) => {
+                    if (itemsErr) return reject(itemsErr);
 
-                    resolve({
-                      summary: summary || {},
-                      tables: tables || [],
-                      waiters: waiters || [],
-                      recent_orders: recentOrders || [],
-                    });
+                    db.all(
+                      `
+                      SELECT
+                        payments.method,
+                        COALESCE(SUM(payments.amount), 0) AS total_amount,
+                        COUNT(payments.id) AS payments_count
+                      FROM payments
+                      WHERE payments.created_at >= ?
+                      AND payments.created_at < ?
+                      GROUP BY payments.method
+                      ORDER BY total_amount DESC
+                      `,
+                      [businessDay.start, businessDay.end],
+                      (paymentsErr, paymentBreakdown) => {
+                        if (paymentsErr) return reject(paymentsErr);
+
+                        db.all(
+                          `
+                          SELECT
+                            orders.id,
+                            orders.order_number,
+                            restaurant_tables.name AS table_name,
+                            users.name AS waiter_name,
+                            ROUND(
+                              (julianday('now') - julianday(orders.created_at)) * 24 * 60
+                            ) AS waiting_minutes,
+                            orders.total,
+                            orders.status
+                          FROM orders
+                          LEFT JOIN restaurant_tables ON orders.table_id = restaurant_tables.id
+                          LEFT JOIN users ON orders.server_id = users.id
+                          WHERE orders.status IN ('open', 'sent', 'bill_printed')
+                          AND orders.created_at >= ?
+                          AND orders.created_at < ?
+                          ORDER BY waiting_minutes DESC
+                          LIMIT 8
+                          `,
+                          [businessDay.start, businessDay.end],
+                          (delaysErr, kitchenDelays) => {
+                            if (delaysErr) return reject(delaysErr);
+
+                            resolve({
+                              business_day_start: businessDay.start,
+                              business_day_end: businessDay.end,
+                              summary: summary || {},
+                              tables: tables || [],
+                              top_waiters: waiters || [],
+                              top_items: topItems || [],
+                              payment_breakdown: paymentBreakdown || [],
+                              kitchen_delays: kitchenDelays || [],
+                            });
+                          }
+                        );
+                      }
+                    );
                   }
                 );
               }
