@@ -13,6 +13,7 @@ import KitchenDisplayPage from "./pages/kitchen/KitchenDisplayPage";
 import BarDisplayPage from "./pages/bar/BarDisplayPage";
 import SystemAdminSetupPage from "./pages/SystemAdminSetupPage";
 import PreviousOrdersPage from "./pages/orders/PreviousOrdersPage";
+import SettingsPage from "./pages/SettingsPage";
 
 function App() {
   return (
@@ -165,6 +166,7 @@ function App() {
         }
       />
       <Route path="/orders" element={<PreviousOrdersPage />} />
+      <Route path="/settings" element={<SettingsPage />} />
     </Routes>
   );
 }

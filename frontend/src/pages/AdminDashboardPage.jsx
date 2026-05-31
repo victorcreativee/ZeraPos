@@ -6,7 +6,7 @@ const setupCards = [
     title: "Restaurant / Bar Profile",
     description:
       "Set business name, type, logo, contact, address, and currency.",
-    path: "/admin/setup?module=profile",
+    path: "/settings",
     tag: "Core Setup",
   },
   {
@@ -30,6 +30,13 @@ const setupCards = [
     tag: "Access",
   },
   {
+    title: "System Settings",
+    description:
+      "Configure business profile, receipts, payment methods, and POS operation rules.",
+    path: "/settings",
+    tag: "Settings",
+  },
+  {
     title: "Menu Setup",
     description:
       "Configure food, drinks, categories, prices, and availability.",
@@ -39,14 +46,14 @@ const setupCards = [
   {
     title: "Payment Settings",
     description: "Enable cash, mobile money, card, split payments, and tips.",
-    path: "/admin/setup?module=payments",
+    path: "/settings",
     tag: "Finance",
   },
   {
     title: "Receipt Settings",
     description:
       "Customize receipt logo, footer, tax number, and printer format.",
-    path: "/admin/setup?module=receipts",
+    path: "/settings",
     tag: "Printing",
   },
   {

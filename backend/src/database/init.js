@@ -145,6 +145,37 @@ function initDatabase() {
         FOREIGN KEY (printed_by) REFERENCES users(id)
       )
     `);
+    db.run(`
+      CREATE TABLE IF NOT EXISTS system_settings (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+    
+        business_name TEXT DEFAULT 'Demo Bar & Restaurant',
+        business_type TEXT DEFAULT 'Restaurant & Bar',
+        phone TEXT DEFAULT '',
+        address TEXT DEFAULT '',
+        tin TEXT DEFAULT '',
+        currency TEXT DEFAULT 'UGX',
+    
+        receipt_footer TEXT DEFAULT 'Thank you for dining with us.',
+        receipt_width TEXT DEFAULT '80mm',
+    
+        enable_kitchen_screen INTEGER DEFAULT 1,
+        enable_bar_screen INTEGER DEFAULT 1,
+        enable_kitchen_ticket_printing INTEGER DEFAULT 1,
+        enable_bar_ticket_printing INTEGER DEFAULT 1,
+    
+        enable_cash INTEGER DEFAULT 1,
+        enable_mobile_money INTEGER DEFAULT 1,
+        enable_card INTEGER DEFAULT 1,
+    
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    db.run(`
+      INSERT OR IGNORE INTO system_settings (id)
+      VALUES (1)
+    `);
     addColumnIfMissing("orders", "cancel_reason", "TEXT");
     addColumnIfMissing("orders", "cancelled_by", "INTEGER");
     addColumnIfMissing("orders", "cancelled_at", "DATETIME");
