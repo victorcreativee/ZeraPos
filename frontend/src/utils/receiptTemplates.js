@@ -1,10 +1,43 @@
+import { getBusinessSettings } from "./businessSettings";
+
 function formatMoney(amount) {
-  return `UGX ${Number(amount || 0).toLocaleString()}`;
+  const settings = getBusinessSettings();
+  const currency = settings.currency || "UGX";
+
+  return `${currency} ${Number(amount || 0).toLocaleString()}`;
 }
 
 function formatDate(date) {
   if (!date) return new Date().toLocaleString();
   return new Date(date).toLocaleString();
+}
+
+function businessHeader(subtitle, note = "") {
+  const settings = getBusinessSettings();
+
+  return `
+    <div class="center">
+      <h2>${settings.business_name || "ZERA POS"}</h2>
+      ${settings.address ? `<p class="tiny muted">${settings.address}</p>` : ""}
+      ${
+        settings.phone ? `<p class="tiny muted">Tel: ${settings.phone}</p>` : ""
+      }
+      ${settings.tin ? `<p class="tiny muted">TIN: ${settings.tin}</p>` : ""}
+      <p class="small bold">${subtitle}</p>
+      ${note ? `<p class="tiny muted">${note}</p>` : ""}
+    </div>
+  `;
+}
+
+function receiptFooter() {
+  const settings = getBusinessSettings();
+
+  return `
+    <div class="line"></div>
+    <p class="center small">
+      ${settings.receipt_footer || "Thank you for dining with us."}
+    </p>
+  `;
 }
 
 export function buildPreparationTicket(order, ticketType) {
@@ -17,10 +50,7 @@ export function buildPreparationTicket(order, ticketType) {
   const title = ticketType === "kitchen" ? "KITCHEN TICKET" : "BAR TICKET";
 
   return `
-    <div class="center">
-      <h2>DEMO BAR & RESTAURANT</h2>
-      <p class="small bold">${title}</p>
-    </div>
+    ${businessHeader(title)}
 
     <div class="solid-line"></div>
 
@@ -65,11 +95,7 @@ export function buildPreparationTicket(order, ticketType) {
 
 export function buildCustomerBill(order) {
   return `
-    <div class="center">
-      <h2>DEMO BAR & RESTAURANT</h2>
-      <p class="small bold">CUSTOMER BILL</p>
-      <p class="tiny muted">Not a payment receipt</p>
-    </div>
+    ${businessHeader("CUSTOMER BILL", "Not a payment receipt")}
 
     <div class="solid-line"></div>
 
@@ -123,9 +149,7 @@ export function buildCustomerBill(order) {
     <p class="small bold">Payment Options</p>
     <p class="small muted">Cash • MTN MoMo • Airtel Money • Card</p>
 
-    <div class="line"></div>
-
-    <p class="center small">Thank you for dining with us.</p>
+    ${receiptFooter()}
   `;
 }
 
@@ -134,11 +158,7 @@ export function buildCombinedCustomerBill(bill) {
   const orders = bill.orders || [];
 
   return `
-    <div class="center">
-      <h2>DEMO BAR & RESTAURANT</h2>
-      <p class="small bold">COMBINED CUSTOMER BILL</p>
-      <p class="tiny muted">Not a payment receipt</p>
-    </div>
+    ${businessHeader("COMBINED CUSTOMER BILL", "Not a payment receipt")}
 
     <div class="solid-line"></div>
 
@@ -187,18 +207,13 @@ export function buildCombinedCustomerBill(bill) {
     <p class="small bold">Payment Options</p>
     <p class="small muted">Cash • MTN MoMo • Airtel Money • Card</p>
 
-    <div class="line"></div>
-
-    <p class="center small">Thank you for dining with us.</p>
+    ${receiptFooter()}
   `;
 }
 
 export function buildPaidReceipt(order, paymentMethod = "Cash") {
   return `
-    <div class="center">
-      <h2>DEMO BAR & RESTAURANT</h2>
-      <p class="small bold">PAYMENT RECEIPT</p>
-    </div>
+    ${businessHeader("PAYMENT RECEIPT")}
 
     <div class="solid-line"></div>
 
@@ -254,11 +269,10 @@ export function buildPaidReceipt(order, paymentMethod = "Cash") {
 
     <div class="status-paid">PAID</div>
 
-    <div class="line"></div>
-
-    <p class="center small">Thank you for visiting.</p>
+    ${receiptFooter()}
   `;
 }
+
 export function buildCombinedPaidReceipt(payment) {
   const orders = payment.orders || [];
   const items = payment.items || [];
@@ -267,10 +281,7 @@ export function buildCombinedPaidReceipt(payment) {
     : "CASH";
 
   return `
-    <div class="center">
-      <h2>DEMO BAR & RESTAURANT</h2>
-      <p class="small bold">COMBINED PAYMENT RECEIPT</p>
-    </div>
+    ${businessHeader("COMBINED PAYMENT RECEIPT")}
 
     <div class="solid-line"></div>
 
@@ -295,14 +306,13 @@ export function buildCombinedPaidReceipt(payment) {
       .map(
         (item) => `
         <div class="row">
-          <span>${item.product_name}<br/>
+          <span>
+            ${item.product_name}<br/>
             <span class="tiny muted">
-              ${item.quantity} x UGX ${Number(
-          item.unit_price || 0
-        ).toLocaleString()}
+              ${item.quantity} x ${formatMoney(item.unit_price)}
             </span>
           </span>
-          <span>UGX ${Number(item.total_price || 0).toLocaleString()}</span>
+          <span>${formatMoney(item.total_price)}</span>
         </div>
       `
       )
@@ -312,11 +322,11 @@ export function buildCombinedPaidReceipt(payment) {
 
     <div class="row total">
       <span>TOTAL PAID</span>
-      <span>UGX ${Number(payment.amount || 0).toLocaleString()}</span>
+      <span>${formatMoney(payment.amount)}</span>
     </div>
 
     <div class="status-paid">PAID</div>
 
-    <p class="center small">Thank you for visiting.</p>
+    ${receiptFooter()}
   `;
 }

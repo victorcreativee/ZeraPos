@@ -15,8 +15,16 @@ import {
   buildPaidReceipt,
 } from "../utils/receiptTemplates";
 import { printReceiptWindow } from "../utils/printReceipt";
+import { getBusinessSettings } from "../utils/businessSettings";
 
 function CounterDashboardPage() {
+  const settings = getBusinessSettings();
+
+  const paymentMethods = [
+    settings.enable_cash ? "cash" : null,
+    settings.enable_mobile_money ? "mobile_money" : null,
+    settings.enable_card ? "card" : null,
+  ].filter(Boolean);
   const [data, setData] = useState({
     open_bills: 0,
     open_bill_amount: 0,
@@ -882,6 +890,7 @@ function CounterDashboardPage() {
                 </div>
 
                 <PaymentMethodSelector
+                  paymentMethods={paymentMethods}
                   paymentMethod={paymentMethod}
                   setPaymentMethod={setPaymentMethod}
                   reference={reference}
@@ -944,6 +953,7 @@ function CounterDashboardPage() {
                 </div>
 
                 <PaymentMethodSelector
+                  paymentMethods={paymentMethods}
                   paymentMethod={paymentMethod}
                   setPaymentMethod={setPaymentMethod}
                   reference={reference}
@@ -969,6 +979,7 @@ function CounterDashboardPage() {
 }
 
 function PaymentMethodSelector({
+  paymentMethods,
   paymentMethod,
   setPaymentMethod,
   reference,
@@ -980,7 +991,7 @@ function PaymentMethodSelector({
         <p className="text-sm font-black text-slate-950 mb-3">Payment Method</p>
 
         <div className="grid grid-cols-3 gap-3">
-          {["cash", "mobile_money", "card"].map((method) => (
+          {paymentMethods.map((method) => (
             <button
               key={method}
               onClick={() => setPaymentMethod(method)}

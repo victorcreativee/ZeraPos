@@ -1,11 +1,16 @@
 import { Link } from "react-router-dom";
 import zeraLogo from "../../assets/brand/zera-logo.png";
 import { clearAuthSession, getAuthUser } from "../../utils/authSession";
+import { getBusinessSettings } from "../../utils/businessSettings";
 
-const BUSINESS_NAME = "Demo Bar & Restaurant";
-
-function AppHeader({ title = "POS Workspace", showBackToDashboard = false }) {
+function AppHeader({
+  title = "Waiter Workspace",
+  showBackToDashboard = false,
+}) {
   const user = getAuthUser();
+
+  const settings = getBusinessSettings();
+  const businessName = settings.business_name || "ZERA POS";
 
   function getDashboardPath() {
     if (user?.role === "admin") return "/admin";
@@ -34,7 +39,7 @@ function AppHeader({ title = "POS Workspace", showBackToDashboard = false }) {
 
           <div className="min-w-0">
             <h1 className="text-xl font-black text-slate-900 leading-tight truncate">
-              {BUSINESS_NAME}
+              {businessName}
             </h1>
             <p className="text-sm font-semibold text-slate-500">{title}</p>
           </div>

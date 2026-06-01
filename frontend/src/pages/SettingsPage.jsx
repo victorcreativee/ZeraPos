@@ -12,6 +12,7 @@ function SettingsPage() {
     try {
       const response = await getSettings();
       setSettings(response.data);
+      localStorage.setItem("zera_settings", JSON.stringify(response.data));
     } catch (error) {
       console.log(error);
     }
@@ -25,7 +26,10 @@ function SettingsPage() {
     try {
       setSaving(true);
 
-      await updateSettings(settings);
+      const response = await updateSettings(settings);
+
+      setSettings(response.data);
+      localStorage.setItem("zera_settings", JSON.stringify(response.data));
 
       setSuccess("Settings saved successfully");
 
