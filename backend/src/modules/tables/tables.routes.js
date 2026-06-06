@@ -17,5 +17,10 @@ router.post(
   allowRoles("admin", "manager"),
   tablesController.createTable
 );
-
+router.put(
+  "/:id",
+  requireAuth,
+  allowRoles("admin", "manager"),
+  tablesController.updateTable
+);
 module.exports = router;

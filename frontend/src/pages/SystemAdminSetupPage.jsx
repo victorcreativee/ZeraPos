@@ -4,7 +4,9 @@ import AppHeader from "../components/layout/AppHeader";
 import {
   createCategory,
   createProduct,
+  updateProduct,
   createTable,
+  updateTable,
   getCategories,
   getProducts,
   getTables,
@@ -28,6 +30,11 @@ function SystemAdminSetupPage() {
 
   const [categoryForm, setCategoryForm] = useState({ name: "", type: "food" });
   const [tableForm, setTableForm] = useState({ name: "" });
+  const [editingTable, setEditingTable] = useState(null);
+  const [editTableForm, setEditTableForm] = useState({
+    name: "",
+    status: "available",
+  });
 
   const [productForm, setProductForm] = useState({
     name: "",
@@ -40,6 +47,8 @@ function SystemAdminSetupPage() {
     stock_quantity: "",
     low_stock_level: "",
   });
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [editProductForm, setEditProductForm] = useState(null);
 
   const activeTitle = useMemo(() => {
     return modules.find((item) => item.key === activeModule)?.title || "Setup";
@@ -113,6 +122,46 @@ function SystemAdminSetupPage() {
       showError(err, "Failed to create product");
     }
   }
+  function startEditProduct(product) {
+    setEditingProduct(product);
+
+    setEditProductForm({
+      name: product.name || "",
+      category_id: product.category_id || "",
+      price: product.price || "",
+      cost_price: product.cost_price || "",
+      item_type: product.item_type || "general",
+      send_to: product.send_to || "none",
+      track_stock: Number(product.track_stock) === 1,
+      stock_quantity: product.stock_quantity || "",
+      low_stock_level: product.low_stock_level || "",
+    });
+  }
+
+  async function handleUpdateProduct(e) {
+    e.preventDefault();
+
+    if (!editingProduct || !editProductForm) return;
+
+    try {
+      await updateProduct(editingProduct.id, {
+        ...editProductForm,
+        price: Number(editProductForm.price),
+        cost_price: Number(editProductForm.cost_price || 0),
+        stock_quantity: Number(editProductForm.stock_quantity || 0),
+        low_stock_level: Number(editProductForm.low_stock_level || 0),
+        track_stock: editProductForm.track_stock ? 1 : 0,
+      });
+
+      setEditingProduct(null);
+      setEditProductForm(null);
+
+      await loadSetupData();
+      showSuccess("Product updated successfully");
+    } catch (err) {
+      showError(err, "Failed to update product");
+    }
+  }
 
   async function handleCreateTable(e) {
     e.preventDefault();
@@ -126,7 +175,34 @@ function SystemAdminSetupPage() {
       showError(err, "Failed to create table");
     }
   }
+  function startEditTable(table) {
+    setEditingTable(table);
+    setEditTableForm({
+      name: table.name || "",
+      status: table.status || "available",
+    });
+  }
 
+  async function handleUpdateTable(e) {
+    e.preventDefault();
+
+    if (!editingTable) return;
+
+    try {
+      await updateTable(editingTable.id, editTableForm);
+
+      setEditingTable(null);
+      setEditTableForm({
+        name: "",
+        status: "available",
+      });
+
+      await loadSetupData();
+      showSuccess("Table updated successfully");
+    } catch (err) {
+      showError(err, "Failed to update table");
+    }
+  }
   return (
     <div className="min-h-screen bg-slate-100 text-slate-950">
       <AppHeader
@@ -187,6 +263,7 @@ function SystemAdminSetupPage() {
             setTableForm={setTableForm}
             onCreateTable={handleCreateTable}
             onRefresh={loadSetupData}
+            onEditTable={startEditTable}
           />
         )}
 
@@ -200,10 +277,33 @@ function SystemAdminSetupPage() {
             setProductForm={setProductForm}
             onCreateCategory={handleCreateCategory}
             onCreateProduct={handleCreateProduct}
+            onEditProduct={startEditProduct}
           />
         )}
 
         {activeModule === "backup" && <BackupModule />}
+        {editingTable && (
+          <EditTableModal
+            table={editingTable}
+            form={editTableForm}
+            setForm={setEditTableForm}
+            onClose={() => setEditingTable(null)}
+            onSubmit={handleUpdateTable}
+          />
+        )}
+        {editingProduct && editProductForm && (
+          <EditProductModal
+            product={editingProduct}
+            form={editProductForm}
+            setForm={setEditProductForm}
+            categories={categories}
+            onClose={() => {
+              setEditingProduct(null);
+              setEditProductForm(null);
+            }}
+            onSubmit={handleUpdateProduct}
+          />
+        )}
       </main>
     </div>
   );
@@ -215,6 +315,7 @@ function TablesModule({
   setTableForm,
   onCreateTable,
   onRefresh,
+  onEditTable,
 }) {
   return (
     <div className="grid xl:grid-cols-[380px_1fr] gap-5">
@@ -281,15 +382,25 @@ function TablesModule({
                       </p>
                     </div>
 
-                    <span
-                      className={`px-3 py-1 text-[10px] font-black uppercase ${
-                        table.status === "available"
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-amber-100 text-amber-700"
-                      }`}
-                    >
-                      {table.status || "available"}
-                    </span>
+                    <div className="flex flex-col items-end gap-2">
+                      <span
+                        className={`px-3 py-1 text-[10px] font-black uppercase ${
+                          table.status === "available"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-amber-100 text-amber-700"
+                        }`}
+                      >
+                        {table.status || "available"}
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={() => onEditTable(table)}
+                        className="border border-slate-200 bg-white px-3 py-1 text-xs font-black text-slate-700 hover:bg-slate-50"
+                      >
+                        Edit
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -310,6 +421,7 @@ function MenuModule({
   setProductForm,
   onCreateCategory,
   onCreateProduct,
+  onEditProduct,
 }) {
   return (
     <div className="space-y-5">
@@ -481,39 +593,65 @@ function MenuModule({
         title="Current Menu"
         subtitle={`${products.length} products configured`}
       >
-        <div className="divide-y divide-slate-100 border border-slate-200">
-          {products.map((product) => (
-            <div
-              key={product.id}
-              className="grid gap-3 px-4 py-3 md:grid-cols-[1fr_140px_140px_120px] md:items-center"
-            >
-              <div>
-                <p className="font-black text-slate-950">{product.name}</p>
-                <p className="text-sm font-semibold text-slate-500">
-                  {product.category_name || product.item_type}
-                </p>
+        {products.length === 0 ? (
+          <div className="border border-slate-200 bg-slate-50 p-8 text-center text-sm font-black text-slate-400">
+            No products created yet.
+          </div>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2">
+            {products.map((product) => (
+              <div
+                key={product.id}
+                className="border border-slate-200 bg-white p-3 shadow-sm hover:bg-slate-50 transition"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="font-black text-slate-950">
+                      {product.name}
+                    </h3>
+                    <p className="mt-1 text-sm font-semibold text-slate-500">
+                      {product.category_name ||
+                        product.item_type ||
+                        "Uncategorized"}
+                    </p>
+                  </div>
+
+                  <span className="bg-slate-100 px-3 py-1 text-[10px] font-black uppercase text-slate-600">
+                    {product.item_type || "item"}
+                  </span>
+                </div>
+
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-black uppercase text-slate-400">
+                      Price
+                    </p>
+                    <p className="mt-1 font-black text-emerald-600">
+                      {Number(product.price || 0).toLocaleString()}
+                    </p>
+                  </div>
+
+                  <div className="text-right">
+                    <p className="text-xs font-black uppercase text-slate-400">
+                      Send To
+                    </p>
+                    <p className="mt-1 font-black text-slate-700">
+                      {product.send_to || "none"}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => onEditProduct(product)}
+                  className="mt-3 h-9 w-full border border-slate-200 bg-white text-xs font-black text-slate-700 hover:bg-slate-50"
+                >
+                  Edit Product
+                </button>
               </div>
-
-              <span className="font-black text-emerald-600">
-                {Number(product.price).toLocaleString()}
-              </span>
-
-              <span className="text-sm font-black text-slate-700">
-                {product.send_to || "none"}
-              </span>
-
-              <span className="w-fit bg-slate-100 px-3 py-1 text-xs font-black uppercase text-slate-600">
-                {product.item_type}
-              </span>
-            </div>
-          ))}
-
-          {products.length === 0 && (
-            <div className="p-8 text-center text-sm font-black text-slate-400">
-              No products created yet.
-            </div>
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </Panel>
     </div>
   );
@@ -620,6 +758,258 @@ function InfoCard({ title, value, text }) {
       <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
         {text}
       </p>
+    </div>
+  );
+}
+function EditProductModal({
+  product,
+  form,
+  setForm,
+  categories,
+  onClose,
+  onSubmit,
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <form
+        onSubmit={onSubmit}
+        className="w-full max-w-2xl border border-slate-200 bg-white p-5 shadow-xl"
+      >
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-black uppercase text-slate-400">
+              Edit Product
+            </p>
+
+            <h2 className="mt-1 text-2xl font-black text-slate-950">
+              {product.name}
+            </h2>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-10 w-10 border border-slate-200 bg-white text-xl font-black"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-4">
+          <Input
+            label="Product Name"
+            value={form.name}
+            onChange={(value) =>
+              setForm((prev) => ({
+                ...prev,
+                name: value,
+              }))
+            }
+            required
+          />
+
+          <Select
+            label="Category"
+            value={form.category_id}
+            onChange={(value) =>
+              setForm((prev) => ({
+                ...prev,
+                category_id: value,
+              }))
+            }
+            options={[
+              { value: "", label: "No category" },
+              ...categories.map((cat) => ({
+                value: cat.id,
+                label: cat.name,
+              })),
+            ]}
+          />
+
+          <Input
+            label="Selling Price"
+            type="number"
+            value={form.price}
+            onChange={(value) =>
+              setForm((prev) => ({
+                ...prev,
+                price: value,
+              }))
+            }
+            required
+          />
+
+          <Input
+            label="Cost Price"
+            type="number"
+            value={form.cost_price}
+            onChange={(value) =>
+              setForm((prev) => ({
+                ...prev,
+                cost_price: value,
+              }))
+            }
+          />
+
+          <Select
+            label="Item Type"
+            value={form.item_type}
+            onChange={(value) =>
+              setForm((prev) => ({
+                ...prev,
+                item_type: value,
+              }))
+            }
+            options={[
+              { value: "food", label: "Food" },
+              { value: "drink", label: "Drink" },
+              { value: "general", label: "General" },
+            ]}
+          />
+
+          <Select
+            label="Send To"
+            value={form.send_to}
+            onChange={(value) =>
+              setForm((prev) => ({
+                ...prev,
+                send_to: value,
+              }))
+            }
+            options={[
+              { value: "kitchen", label: "Kitchen Screen" },
+              { value: "bar", label: "Bar Screen" },
+              { value: "none", label: "No production screen" },
+            ]}
+          />
+
+          <label className="md:col-span-2 flex items-center justify-between border border-slate-200 bg-slate-50 px-4 py-3">
+            <div>
+              <p className="text-sm font-black text-slate-950">Track Stock</p>
+              <p className="text-xs font-semibold text-slate-500">
+                Enable this for drinks or inventory-controlled items.
+              </p>
+            </div>
+
+            <input
+              type="checkbox"
+              checked={form.track_stock}
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  track_stock: e.target.checked,
+                }))
+              }
+            />
+          </label>
+
+          {form.track_stock && (
+            <>
+              <Input
+                label="Stock Qty"
+                type="number"
+                value={form.stock_quantity}
+                onChange={(value) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    stock_quantity: value,
+                  }))
+                }
+              />
+
+              <Input
+                label="Low Stock Level"
+                type="number"
+                value={form.low_stock_level}
+                onChange={(value) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    low_stock_level: value,
+                  }))
+                }
+              />
+            </>
+          )}
+
+          <div className="md:col-span-2 flex gap-3">
+            <button className="h-12 flex-1 bg-slate-950 text-sm font-black text-white">
+              Save Product
+            </button>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="h-12 px-5 border border-slate-200 bg-white text-sm font-black"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+}
+function EditTableModal({ table, form, setForm, onClose, onSubmit }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <form
+        onSubmit={onSubmit}
+        className="w-full max-w-md border border-slate-200 bg-white p-5 shadow-xl"
+      >
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-black uppercase text-slate-400">
+              Edit Table
+            </p>
+
+            <h2 className="mt-1 text-2xl font-black text-slate-950">
+              {table.name}
+            </h2>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-10 w-10 border border-slate-200 bg-white text-xl font-black"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <Input
+            label="Table or Area Name"
+            value={form.name}
+            onChange={(value) =>
+              setForm((prev) => ({
+                ...prev,
+                name: value,
+              }))
+            }
+            required
+          />
+
+          <Select
+            label="Status"
+            value={form.status}
+            onChange={(value) =>
+              setForm((prev) => ({
+                ...prev,
+                status: value,
+              }))
+            }
+            options={[
+              { value: "available", label: "Available" },
+              { value: "inactive", label: "Inactive" },
+              { value: "reserved", label: "Reserved" },
+            ]}
+          />
+
+          <button className="h-12 w-full bg-slate-950 text-sm font-black text-white">
+            Save Table
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

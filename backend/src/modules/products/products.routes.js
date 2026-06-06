@@ -12,5 +12,11 @@ router.post(
   allowRoles("admin", "manager"),
   productsController.createProduct
 );
+router.put(
+  "/:id",
+  requireAuth,
+  allowRoles("admin", "manager"),
+  productsController.updateProduct
+);
 
 module.exports = router;

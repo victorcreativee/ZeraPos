@@ -99,9 +99,68 @@ function createProduct(data) {
     );
   });
 }
+function updateProduct(productId, data) {
+  return new Promise((resolve, reject) => {
+    const {
+      name,
+      category_id,
+      price,
+      cost_price,
+      item_type,
+      send_to,
+      track_stock,
+      stock_quantity,
+      low_stock_level,
+    } = data;
 
+    if (!name) return reject(new Error("Product name is required"));
+    if (!price) return reject(new Error("Selling price is required"));
+
+    db.run(
+      `
+      UPDATE products
+      SET
+        name = ?,
+        category_id = ?,
+        price = ?,
+        cost_price = ?,
+        item_type = ?,
+        send_to = ?,
+        track_stock = ?,
+        stock_quantity = ?,
+        low_stock_level = ?
+      WHERE id = ?
+      `,
+      [
+        name,
+        category_id || null,
+        Number(price),
+        Number(cost_price || 0),
+        item_type || "general",
+        send_to || "none",
+        track_stock ? 1 : 0,
+        Number(stock_quantity || 0),
+        Number(low_stock_level || 0),
+        productId,
+      ],
+      function (err) {
+        if (err) return reject(err);
+
+        if (this.changes === 0) {
+          return reject(new Error("Product not found"));
+        }
+
+        resolve({
+          id: Number(productId),
+          ...data,
+        });
+      }
+    );
+  });
+}
 module.exports = {
   getProducts,
   getProductsByCategory,
   createProduct,
+  updateProduct,
 };

@@ -62,7 +62,39 @@ function createTable(data) {
     );
   });
 }
+function updateTable(tableId, data) {
+  return new Promise((resolve, reject) => {
+    const { name, status } = data;
 
+    if (!name) {
+      return reject(new Error("Table name is required"));
+    }
+
+    const nextStatus = status || "available";
+
+    db.run(
+      `
+      UPDATE restaurant_tables
+      SET name = ?, status = ?
+      WHERE id = ?
+      `,
+      [name, nextStatus, tableId],
+      function (err) {
+        if (err) return reject(err);
+
+        if (this.changes === 0) {
+          return reject(new Error("Table not found"));
+        }
+
+        resolve({
+          id: Number(tableId),
+          name,
+          status: nextStatus,
+        });
+      }
+    );
+  });
+}
 function getTableActiveBill(tableId) {
   return new Promise((resolve, reject) => {
     db.get(
@@ -145,5 +177,6 @@ function getTableActiveBill(tableId) {
 module.exports = {
   getTables,
   createTable,
+  updateTable,
   getTableActiveBill,
 };

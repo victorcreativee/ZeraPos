@@ -41,6 +41,31 @@ async function createTable(req, res) {
     });
   }
 }
+async function updateTable(req, res) {
+  try {
+    const { name } = req.body;
+
+    if (!name) {
+      return res.status(400).json({
+        success: false,
+        message: "Table name is required",
+      });
+    }
+
+    const table = await tablesService.updateTable(req.params.id, req.body);
+
+    res.json({
+      success: true,
+      message: "Table updated successfully",
+      data: table,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}
 async function getTableActiveBill(req, res) {
   try {
     const bill = await tablesService.getTableActiveBill(req.params.id);
@@ -56,8 +81,10 @@ async function getTableActiveBill(req, res) {
     });
   }
 }
+
 module.exports = {
   getTables,
   createTable,
+  updateTable,
   getTableActiveBill,
 };

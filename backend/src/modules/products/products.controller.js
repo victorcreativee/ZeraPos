@@ -45,8 +45,27 @@ async function createProduct(req, res) {
     });
   }
 }
+async function updateProduct(req, res) {
+  try {
+    const product = await productsService.updateProduct(
+      req.params.id,
+      req.body
+    );
 
+    res.json({
+      success: true,
+      message: "Product updated successfully",
+      data: product,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}
 module.exports = {
   getProducts,
   createProduct,
+  updateProduct,
 };
