@@ -15,16 +15,13 @@ import {
   buildPaidReceipt,
 } from "../utils/receiptTemplates";
 import { printReceiptWindow } from "../utils/printReceipt";
-import { getBusinessSettings } from "../utils/businessSettings";
+import {
+  getDefaultPaymentMethod,
+  getEnabledPaymentMethods,
+} from "../utils/businessSettings";
 
 function CounterDashboardPage() {
-  const settings = getBusinessSettings();
-
-  const paymentMethods = [
-    settings.enable_cash ? "cash" : null,
-    settings.enable_mobile_money ? "mobile_money" : null,
-    settings.enable_card ? "card" : null,
-  ].filter(Boolean);
+  const paymentMethods = getEnabledPaymentMethods();
   const [data, setData] = useState({
     open_bills: 0,
     open_bill_amount: 0,
@@ -39,7 +36,7 @@ function CounterDashboardPage() {
 
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [selectedTableBill, setSelectedTableBill] = useState(null);
-  const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [paymentMethod, setPaymentMethod] = useState(getDefaultPaymentMethod());
   const [reference, setReference] = useState("");
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState("");
@@ -129,7 +126,7 @@ function CounterDashboardPage() {
       );
 
       setSelectedTableBill(null);
-      setPaymentMethod("cash");
+      setPaymentMethod(getDefaultPaymentMethod());
       setReference("");
 
       await loadDashboard();
@@ -572,7 +569,7 @@ function CounterDashboardPage() {
 
                           <button
                             onClick={() => {
-                              setPaymentMethod("cash");
+                              setPaymentMethod(getDefaultPaymentMethod());
                               setReference("");
 
                               if (group.table_id) {
@@ -876,7 +873,7 @@ function CounterDashboardPage() {
                             onClick={() => {
                               setSelectedTableBill(null);
                               setSelectedOrder(order);
-                              setPaymentMethod("cash");
+                              setPaymentMethod(getDefaultPaymentMethod());
                               setReference("");
                             }}
                             className="rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white"
@@ -900,7 +897,7 @@ function CounterDashboardPage() {
                 {error && <ErrorBox message={error} />}
 
                 <button
-                  disabled={paying}
+                  disabled={paying || paymentMethods.length === 0}
                   onClick={handleReceiveTablePayment}
                   className="w-full h-14 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-lg font-black text-white"
                 >
@@ -959,11 +956,13 @@ function CounterDashboardPage() {
                   reference={reference}
                   setReference={setReference}
                 />
-
+                {paymentMethods.length === 0 && (
+                  <ErrorBox message="No payment method is enabled. Please enable at least one payment method in Settings." />
+                )}
                 {error && <ErrorBox message={error} />}
 
                 <button
-                  disabled={paying}
+                  disabled={paying || paymentMethods.length === 0}
                   onClick={handleReceivePayment}
                   className="w-full h-14 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-lg font-black text-white"
                 >
