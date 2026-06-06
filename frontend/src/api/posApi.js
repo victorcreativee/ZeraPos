@@ -20,6 +20,23 @@ export async function createProduct(productData) {
   const response = await apiClient.post("/products", productData);
   return response.data;
 }
+export async function updateCategory(categoryId, categoryData) {
+  const response = await apiClient.put(
+    `/categories/${categoryId}`,
+    categoryData
+  );
+  return response.data;
+}
+
+export async function updateProduct(productId, productData) {
+  const response = await apiClient.put(`/products/${productId}`, productData);
+  return response.data;
+}
+
+export async function updateTable(tableId, tableData) {
+  const response = await apiClient.put(`/tables/${tableId}`, tableData);
+  return response.data;
+}
 
 export async function getTables() {
   const response = await apiClient.get("/tables");

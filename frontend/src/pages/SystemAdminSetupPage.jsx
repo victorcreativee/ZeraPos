@@ -131,14 +131,32 @@ function SystemAdminSetupPage() {
     <div className="min-h-screen bg-slate-100 text-slate-950">
       <AppHeader
         title="System Admin Setup"
-        subtitle="Configure tables, menu items, and local system tools"
+        subtitle={activeTitle}
         showBackToDashboard
       />
 
-      <main className="mx-auto max-w-7xl p-5 space-y-5">
-        <Link to="/admin" className="text-sm font-black text-slate-500">
-          ← Back to System Admin
-        </Link>
+      <main className="mx-auto max-w-[1500px] p-5 space-y-5">
+        <div className="flex items-center justify-between gap-4">
+          <Link to="/admin" className="text-sm font-black text-slate-500">
+            ← Back to System Admin
+          </Link>
+
+          <div className="flex gap-2">
+            {modules.map((item) => (
+              <button
+                key={item.key}
+                onClick={() => setSearchParams({ module: item.key })}
+                className={`px-4 py-2 text-sm font-black ${
+                  activeModule === item.key
+                    ? "bg-slate-950 text-white"
+                    : "border border-slate-200 bg-white text-slate-700"
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {(message || error) && (
           <div
@@ -152,87 +170,54 @@ function SystemAdminSetupPage() {
           </div>
         )}
 
-        <div className="grid lg:grid-cols-[240px_1fr] gap-5">
-          <aside className="border border-slate-200 bg-white p-3 shadow-sm h-fit">
-            <p className="px-3 pb-3 text-xs font-black uppercase text-slate-400">
-              Setup Modules
-            </p>
+        <section className="border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-black uppercase text-slate-400">
+            Current Module
+          </p>
+          <h1 className="mt-2 text-3xl font-black">{activeTitle}</h1>
+          <p className="mt-2 text-sm font-semibold text-slate-500">
+            Practical setup for daily restaurant operations.
+          </p>
+        </section>
 
-            <div className="space-y-1">
-              {modules.map((item) => (
-                <button
-                  key={item.key}
-                  onClick={() => setSearchParams({ module: item.key })}
-                  className={`w-full px-4 py-3 text-left text-sm font-black ${
-                    activeModule === item.key
-                      ? "bg-slate-950 text-white"
-                      : "text-slate-700 hover:bg-slate-100"
-                  }`}
-                >
-                  {item.label}
-                </button>
-              ))}
+        {activeModule === "tables" && (
+          <TablesModule
+            tables={tables}
+            tableForm={tableForm}
+            setTableForm={setTableForm}
+            onCreateTable={handleCreateTable}
+            onRefresh={loadSetupData}
+          />
+        )}
 
-              <Link
-                to="/users"
-                className="block px-4 py-3 text-sm font-black text-slate-700 hover:bg-slate-100"
-              >
-                Users & Roles
-              </Link>
+        {activeModule === "menu" && (
+          <MenuModule
+            categories={categories}
+            products={products}
+            categoryForm={categoryForm}
+            setCategoryForm={setCategoryForm}
+            productForm={productForm}
+            setProductForm={setProductForm}
+            onCreateCategory={handleCreateCategory}
+            onCreateProduct={handleCreateProduct}
+          />
+        )}
 
-              <Link
-                to="/settings"
-                className="block px-4 py-3 text-sm font-black text-slate-700 hover:bg-slate-100"
-              >
-                System Settings
-              </Link>
-            </div>
-          </aside>
-
-          <section className="space-y-5">
-            <div className="border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-xs font-black uppercase text-slate-400">
-                Current Module
-              </p>
-              <h1 className="mt-2 text-3xl font-black">{activeTitle}</h1>
-              <p className="mt-2 text-sm font-semibold text-slate-500">
-                Practical setup for daily restaurant operations.
-              </p>
-            </div>
-
-            {activeModule === "tables" && (
-              <TablesModule
-                tables={tables}
-                tableForm={tableForm}
-                setTableForm={setTableForm}
-                onCreateTable={handleCreateTable}
-              />
-            )}
-
-            {activeModule === "menu" && (
-              <MenuModule
-                categories={categories}
-                products={products}
-                categoryForm={categoryForm}
-                setCategoryForm={setCategoryForm}
-                productForm={productForm}
-                setProductForm={setProductForm}
-                onCreateCategory={handleCreateCategory}
-                onCreateProduct={handleCreateProduct}
-              />
-            )}
-
-            {activeModule === "backup" && <BackupModule />}
-          </section>
-        </div>
+        {activeModule === "backup" && <BackupModule />}
       </main>
     </div>
   );
 }
 
-function TablesModule({ tables, tableForm, setTableForm, onCreateTable }) {
+function TablesModule({
+  tables,
+  tableForm,
+  setTableForm,
+  onCreateTable,
+  onRefresh,
+}) {
   return (
-    <div className="grid xl:grid-cols-[420px_1fr] gap-5">
+    <div className="grid xl:grid-cols-[380px_1fr] gap-5">
       <Panel
         title="Create Table / Area"
         subtitle="Dining tables, VIP rooms, bar counter"
@@ -248,28 +233,69 @@ function TablesModule({ tables, tableForm, setTableForm, onCreateTable }) {
 
           <SubmitButton label="Create Table" />
         </form>
+
+        <div className="mt-5 border border-slate-200 bg-slate-50 p-4">
+          <p className="text-sm font-black text-slate-950">Naming Tip</p>
+          <p className="mt-1 text-sm font-semibold text-slate-500">
+            Use clear names like Table 01, VIP Table 1, Bar Counter, Terrace 1,
+            or Takeaway.
+          </p>
+        </div>
       </Panel>
 
-      <Panel title="Existing Tables" subtitle={`${tables.length} configured`}>
-        <div className="divide-y divide-slate-100 border border-slate-200">
-          {tables.map((table) => (
-            <div
-              key={table.id}
-              className="grid grid-cols-[1fr_120px] px-4 py-3"
-            >
-              <p className="font-black text-slate-950">{table.name}</p>
-              <span className="w-fit bg-slate-100 px-3 py-1 text-xs font-black uppercase text-slate-600">
-                {table.status}
-              </span>
-            </div>
-          ))}
+      <Panel
+        title="Existing Tables"
+        subtitle={`${tables.length} configured`}
+        action={
+          <button
+            onClick={onRefresh}
+            className="border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 hover:bg-slate-50"
+          >
+            Refresh
+          </button>
+        }
+      >
+        {tables.length === 0 ? (
+          <div className="border border-slate-200 bg-slate-50 p-8 text-center text-sm font-black text-slate-400">
+            No tables created yet.
+          </div>
+        ) : (
+          <div className="grid sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
+            {tables.map((table) => {
+              const meta = getTableMeta(table.name);
 
-          {tables.length === 0 && (
-            <div className="p-8 text-center text-sm font-black text-slate-400">
-              No tables created yet.
-            </div>
-          )}
-        </div>
+              return (
+                <div
+                  key={table.id}
+                  className="border border-slate-200 bg-white p-4 shadow-sm hover:bg-slate-50 transition"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="font-black text-slate-950">
+                        {table.name}
+                      </h3>
+
+                      <p className="mt-4 text-sm font-semibold text-slate-500">
+                        <span className="mr-2">{meta.icon}</span>
+                        {meta.label}
+                      </p>
+                    </div>
+
+                    <span
+                      className={`px-3 py-1 text-[10px] font-black uppercase ${
+                        table.status === "available"
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-amber-100 text-amber-700"
+                      }`}
+                    >
+                      {table.status || "available"}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </Panel>
     </div>
   );
@@ -287,7 +313,7 @@ function MenuModule({
 }) {
   return (
     <div className="space-y-5">
-      <div className="grid xl:grid-cols-[360px_1fr] gap-5">
+      <div className="grid xl:grid-cols-[380px_1fr] gap-5">
         <Panel title="Create Category" subtitle="Food, drinks, beers, spirits">
           <form onSubmit={onCreateCategory} className="space-y-4">
             <Input
@@ -517,13 +543,20 @@ function BackupModule() {
   );
 }
 
-function Panel({ title, subtitle, children }) {
+function Panel({ title, subtitle, action, children }) {
   return (
     <section className="border border-slate-200 bg-white p-5 shadow-sm">
-      <h2 className="text-xl font-black text-slate-950">{title}</h2>
-      <p className="mt-1 mb-5 text-sm font-semibold text-slate-500">
-        {subtitle}
-      </p>
+      <div className="mb-5 flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-black text-slate-950">{title}</h2>
+          <p className="mt-1 text-sm font-semibold text-slate-500">
+            {subtitle}
+          </p>
+        </div>
+
+        {action}
+      </div>
+
       {children}
     </section>
   );
@@ -590,5 +623,25 @@ function InfoCard({ title, value, text }) {
     </div>
   );
 }
+function getTableMeta(name = "") {
+  const lowerName = name.toLowerCase();
 
+  if (lowerName.includes("vip")) {
+    return { icon: "♛", label: "VIP Room" };
+  }
+
+  if (lowerName.includes("bar")) {
+    return { icon: "🍷", label: "Bar Counter" };
+  }
+
+  if (lowerName.includes("terrace")) {
+    return { icon: "☂", label: "Terrace" };
+  }
+
+  if (lowerName.includes("takeaway")) {
+    return { icon: "▣", label: "Takeaway" };
+  }
+
+  return { icon: "▥", label: "Dining Table" };
+}
 export default SystemAdminSetupPage;
