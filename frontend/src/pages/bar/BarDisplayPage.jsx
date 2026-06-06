@@ -1,8 +1,32 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import AppHeader from "../../components/layout/AppHeader";
 import { getBarQueue, updateOrderItemStatus } from "../../api/ordersApi";
+import { isBarScreenEnabled } from "../../utils/businessSettings";
 
 function BarDisplayPage() {
+  const barScreenEnabled = isBarScreenEnabled();
+
+  if (!barScreenEnabled) {
+    return (
+      <div className="min-h-screen bg-slate-100 text-slate-950">
+        <AppHeader
+          title="Bar Screen Disabled"
+          subtitle="This business is currently using paper bar tickets instead of a bar screen."
+          showBackToDashboard={true}
+        />
+
+        <main className="p-6">
+          <div className="max-w-xl rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-2xl font-black">Bar screen is not active</h2>
+            <p className="mt-3 text-sm font-semibold text-slate-500">
+              Enable Bar Screen in Settings if this restaurant has a bar display
+              device.
+            </p>
+          </div>
+        </main>
+      </div>
+    );
+  }
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);

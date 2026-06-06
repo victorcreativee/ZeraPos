@@ -23,10 +23,6 @@ import {
   buildPreparationTicket,
 } from "../../utils/receiptTemplates";
 import { getMyDashboardStats } from "../../api/reportsApi";
-import {
-  isKitchenTicketPrintingEnabled,
-  isBarTicketPrintingEnabled,
-} from "../../utils/businessSettings";
 
 function POSPage() {
   const user = getAuthUser();
@@ -34,8 +30,6 @@ function POSPage() {
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
   const [tables, setTables] = useState([]);
-  const kitchenTicketEnabled = isKitchenTicketPrintingEnabled();
-  const barTicketEnabled = isBarTicketPrintingEnabled();
 
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedTable, setSelectedTable] = useState(null);
@@ -186,10 +180,7 @@ function POSPage() {
     const response = await printOrderTicket(orderId, "preparation_ticket");
     const order = response.data;
 
-    if (
-      kitchenTicketEnabled &&
-      (ticketTarget === "kitchen" || ticketTarget === "both")
-    ) {
+    if (ticketTarget === "kitchen" || ticketTarget === "both") {
       const kitchenTicket = buildPreparationTicket(order, "kitchen");
 
       if (kitchenTicket) {
@@ -200,10 +191,7 @@ function POSPage() {
       }
     }
 
-    if (
-      barTicketEnabled &&
-      (ticketTarget === "bar" || ticketTarget === "both")
-    ) {
+    if (ticketTarget === "bar" || ticketTarget === "both") {
       const barTicket = buildPreparationTicket(order, "bar");
 
       if (barTicket) {
@@ -392,31 +380,26 @@ function POSPage() {
             </div>
 
             <div className="p-5 space-y-3">
-              {kitchenTicketEnabled && (
-                <button
-                  onClick={async () => {
-                    await printPreparationTickets(
-                      lastCreatedOrder.id,
-                      "kitchen"
-                    );
-                    setPrintedKitchenTicket(true);
-                  }}
-                  className="w-full h-12 rounded-2xl bg-slate-950 text-white font-black"
-                >
-                  Print Kitchen Ticket
-                </button>
-              )}
-              {barTicketEnabled && (
-                <button
-                  onClick={async () => {
-                    await printPreparationTickets(lastCreatedOrder.id, "bar");
-                    setPrintedBarTicket(true);
-                  }}
-                  className="w-full h-12 rounded-2xl bg-slate-950 text-white font-black"
-                >
-                  Print Bar Ticket
-                </button>
-              )}
+              <button
+                onClick={async () => {
+                  await printPreparationTickets(lastCreatedOrder.id, "kitchen");
+                  setPrintedKitchenTicket(true);
+                }}
+                className="w-full h-12 rounded-2xl bg-slate-950 text-white font-black"
+              >
+                Print Kitchen Ticket
+              </button>
+
+              <button
+                onClick={async () => {
+                  await printPreparationTickets(lastCreatedOrder.id, "bar");
+                  setPrintedBarTicket(true);
+                }}
+                className="w-full h-12 rounded-2xl bg-slate-950 text-white font-black"
+              >
+                Print Bar Ticket
+              </button>
+
               <button
                 onClick={() => {
                   setShowTicketModal(false);

@@ -17,6 +17,8 @@ function AppHeader({
     if (user?.role === "manager") return "/manager";
     if (user?.role === "cashier") return "/counter";
     if (user?.role === "server") return "/pos";
+    if (user?.role === "kitchen") return "/kitchen";
+    if (user?.role === "bar") return "/bar";
     return "/dashboard";
   }
 
