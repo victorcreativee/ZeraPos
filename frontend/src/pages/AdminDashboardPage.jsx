@@ -1,138 +1,131 @@
 import { Link } from "react-router-dom";
 import AppHeader from "../components/layout/AppHeader";
-
-const setupCards = [
-  {
-    title: "Restaurant / Bar Profile",
-    description:
-      "Set business name, type, logo, contact, address, and currency.",
-    path: "/settings",
-    tag: "Core Setup",
-  },
-  {
-    title: "Branches",
-    description:
-      "Manage main branch, bar branch, lounge, or multiple locations.",
-    path: "/admin/setup?module=branches",
-    tag: "Business",
-  },
-  {
-    title: "Tables & Areas",
-    description:
-      "Create halls, VIP areas, terrace, bar counter, and table layout.",
-    path: "/admin/setup?module=tables",
-    tag: "Floor Setup",
-  },
-  {
-    title: "Users & Roles",
-    description: "Manage admins, managers, cashiers, waiters, and bartenders.",
-    path: "/users",
-    tag: "Access",
-  },
-  {
-    title: "System Settings",
-    description:
-      "Configure business profile, receipts, payment methods, and POS operation rules.",
-    path: "/settings",
-    tag: "Settings",
-  },
-  {
-    title: "Menu Setup",
-    description:
-      "Configure food, drinks, categories, prices, and availability.",
-    path: "/admin/setup?module=menu",
-    tag: "Operations",
-  },
-  {
-    title: "Payment Settings",
-    description: "Enable cash, mobile money, card, split payments, and tips.",
-    path: "/settings",
-    tag: "Finance",
-  },
-  {
-    title: "Receipt Settings",
-    description:
-      "Customize receipt logo, footer, tax number, and printer format.",
-    path: "/settings",
-    tag: "Printing",
-  },
-  {
-    title: "Backup & Sync",
-    description:
-      "Manage offline database backup, cloud sync, and device status.",
-    path: "/admin/setup?module=backup",
-    tag: "System",
-  },
-];
+import {
+  isKitchenScreenEnabled,
+  isBarScreenEnabled,
+} from "../utils/businessSettings";
 
 function AdminDashboardPage() {
+  const kitchenScreenEnabled = isKitchenScreenEnabled();
+  const barScreenEnabled = isBarScreenEnabled();
+
   return (
-    <div className="min-h-screen bg-[#07111c] text-white">
+    <div className="min-h-screen bg-slate-100 text-slate-950">
       <AppHeader
         title="System Admin"
-        subtitle="Configure restaurant, bar, users, tables, menu, payments, and system settings"
+        subtitle="Manage setup, staff access, settings, and operational screens"
       />
 
-      <main className="max-w-7xl mx-auto p-6 space-y-6">
-        <section className="rounded-[2rem] bg-gradient-to-br from-purple-700/30 via-[#111827] to-[#07111c] border border-purple-500/20 p-8">
-          <p className="text-purple-300 font-bold">ZERA POS Control Center</p>
-          <h1 className="text-4xl font-black mt-3">
-            Restaurant & Bar System Setup
-          </h1>
-          <p className="text-slate-300 mt-4 max-w-3xl">
-            Manage the foundation of your POS: business profile, branches, floor
-            layout, staff access, menu, payments, receipts, and backups.
+      <main className="mx-auto max-w-7xl p-5 space-y-5">
+        <section className="border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-black uppercase text-slate-400">
+            Admin Control
           </p>
 
-          <div className="grid md:grid-cols-4 gap-4 mt-8">
-            <MiniCard label="Business Type" value="Restaurant & Bar" />
-            <MiniCard label="Mode" value="Offline First" />
-            <MiniCard label="Access" value="Admin Only" />
-            <MiniCard label="Status" value="Active" accent="text-green-400" />
-          </div>
+          <h1 className="mt-2 text-3xl font-black text-slate-950">
+            Restaurant System Setup
+          </h1>
+
+          <p className="mt-2 max-w-3xl text-sm font-semibold text-slate-500">
+            Configure the business, staff, menu, tables, receipts, payments, and
+            the screens used by kitchen and bar teams.
+          </p>
         </section>
 
-        <section>
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <h2 className="text-2xl font-black">Setup Modules</h2>
-              <p className="text-slate-400">
-                Use these sections to configure the full restaurant/bar system.
-              </p>
-            </div>
-
-            {/* <Link
-              to="/manager"
-              className="bg-[#111827] border border-slate-800 hover:border-purple-500 rounded-2xl px-5 py-3 text-sm font-bold"
+        <section className="grid lg:grid-cols-[1.2fr_0.8fr] gap-5">
+          <div className="space-y-5">
+            <AdminSection
+              title="Setup & Settings"
+              subtitle="Core business configuration"
             >
-              Back to Manager
-            </Link> */}
+              <ActionRow
+                title="Business Settings"
+                description="Business profile, receipts, operations, and payment methods."
+                path="/settings"
+                action="Open Settings"
+              />
+
+              <ActionRow
+                title="Menu Setup"
+                description="Create categories, food items, drinks, prices, and kitchen/bar routing."
+                path="/admin/setup?module=menu"
+                action="Manage Menu"
+              />
+
+              <ActionRow
+                title="Tables & Areas"
+                description="Create tables, VIP rooms, bar counter, terrace, and service areas."
+                path="/admin/setup?module=tables"
+                action="Manage Tables"
+              />
+            </AdminSection>
+
+            <AdminSection
+              title="Staff & Access"
+              subtitle="Control who can use each part of the system"
+            >
+              <ActionRow
+                title="Users & Roles"
+                description="Create admin, manager, cashier, waiter, kitchen, and bar users."
+                path="/users"
+                action="Manage Staff"
+              />
+            </AdminSection>
           </div>
 
-          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-5">
-            {setupCards.map((card) => (
-              <Link
-                key={card.title}
-                to={card.path}
-                className="group bg-[#111827] border border-slate-800 hover:border-purple-500 rounded-3xl p-6 transition"
-              >
-                <span className="text-xs bg-purple-500/10 text-purple-300 px-3 py-1 rounded-full">
-                  {card.tag}
-                </span>
+          <div className="space-y-5">
+            <AdminSection
+              title="Operations Screens"
+              subtitle="Open live workspaces for monitoring"
+            >
+              <ScreenRow
+                title="Kitchen Screen"
+                description={
+                  kitchenScreenEnabled
+                    ? "Kitchen display is enabled."
+                    : "Kitchen display is currently disabled in settings."
+                }
+                path="/kitchen"
+                enabled={kitchenScreenEnabled}
+              />
 
-                <h3 className="text-xl font-black mt-5 group-hover:text-purple-300">
-                  {card.title}
-                </h3>
+              <ScreenRow
+                title="Bar Screen"
+                description={
+                  barScreenEnabled
+                    ? "Bar display is enabled."
+                    : "Bar display is currently disabled in settings."
+                }
+                path="/bar"
+                enabled={barScreenEnabled}
+              />
 
-                <p className="text-slate-400 text-sm mt-3 leading-6">
-                  {card.description}
-                </p>
+              <ActionRow
+                title="Cashier Counter"
+                description="Open bills, receive payments, and reprint paid receipts."
+                path="/counter"
+                action="Open Counter"
+              />
 
-                <div className="mt-6 text-slate-500 group-hover:text-white">
-                  Open →
-                </div>
-              </Link>
-            ))}
+              <ActionRow
+                title="Manager Dashboard"
+                description="View sales, open bills, payments, and restaurant performance."
+                path="/manager"
+                action="Open Manager"
+              />
+            </AdminSection>
+
+            <AdminSection
+              title="System Maintenance"
+              subtitle="Backup and device setup"
+            >
+              <ActionRow
+                title="Backup & Sync"
+                description="Prepare database backup, offline device sync, and recovery tools."
+                path="/admin/setup?module=backup"
+                action="Open"
+              />
+            </AdminSection>
           </div>
         </section>
       </main>
@@ -140,12 +133,69 @@ function AdminDashboardPage() {
   );
 }
 
-function MiniCard({ label, value, accent = "text-white" }) {
+function AdminSection({ title, subtitle, children }) {
   return (
-    <div className="bg-[#07111c]/70 border border-white/10 rounded-2xl p-4">
-      <p className="text-slate-400 text-sm">{label}</p>
-      <p className={`font-black mt-2 ${accent}`}>{value}</p>
-    </div>
+    <section className="border border-slate-200 bg-white shadow-sm">
+      <div className="border-b border-slate-200 px-5 py-4">
+        <h2 className="text-xl font-black">{title}</h2>
+        <p className="mt-1 text-sm font-semibold text-slate-500">{subtitle}</p>
+      </div>
+
+      <div className="divide-y divide-slate-100">{children}</div>
+    </section>
+  );
+}
+
+function ActionRow({ title, description, path, action }) {
+  return (
+    <Link
+      to={path}
+      className="flex items-center justify-between gap-4 px-5 py-4 hover:bg-slate-50"
+    >
+      <div>
+        <h3 className="font-black text-slate-950">{title}</h3>
+        <p className="mt-1 text-sm font-semibold text-slate-500">
+          {description}
+        </p>
+      </div>
+
+      <span className="shrink-0 bg-slate-950 px-4 py-2 text-xs font-black text-white">
+        {action}
+      </span>
+    </Link>
+  );
+}
+
+function ScreenRow({ title, description, path, enabled }) {
+  return (
+    <Link
+      to={path}
+      className="flex items-center justify-between gap-4 px-5 py-4 hover:bg-slate-50"
+    >
+      <div>
+        <div className="flex items-center gap-2">
+          <h3 className="font-black text-slate-950">{title}</h3>
+
+          <span
+            className={`px-2 py-1 text-[10px] font-black uppercase ${
+              enabled
+                ? "bg-emerald-100 text-emerald-700"
+                : "bg-slate-100 text-slate-500"
+            }`}
+          >
+            {enabled ? "Enabled" : "Disabled"}
+          </span>
+        </div>
+
+        <p className="mt-1 text-sm font-semibold text-slate-500">
+          {description}
+        </p>
+      </div>
+
+      <span className="shrink-0 bg-slate-950 px-4 py-2 text-xs font-black text-white">
+        Open
+      </span>
+    </Link>
   );
 }
 

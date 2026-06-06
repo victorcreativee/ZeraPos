@@ -7,7 +7,7 @@ function getRoleHome(role) {
   if (role === "cashier") return "/counter";
   if (role === "kitchen") return "/kitchen";
   if (role === "bar") return "/bar";
-  return "/dashboard";
+  return "/pos";
 }
 
 function ProtectedRoute({ children, allowedRoles }) {

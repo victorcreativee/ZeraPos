@@ -11,18 +11,14 @@ import {
 } from "../api/posApi";
 
 const modules = [
-  { key: "profile", label: "Profile", title: "Restaurant / Bar Profile" },
-  { key: "branches", label: "Branches", title: "Branches" },
   { key: "tables", label: "Tables", title: "Tables & Areas" },
   { key: "menu", label: "Menu", title: "Menu Setup" },
-  { key: "payments", label: "Payments", title: "Payment Settings" },
-  { key: "receipts", label: "Receipts", title: "Receipt Settings" },
   { key: "backup", label: "Backup", title: "Backup & Sync" },
 ];
 
 function SystemAdminSetupPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeModule = searchParams.get("module") || "profile";
+  const activeModule = searchParams.get("module") || "tables";
 
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
@@ -132,54 +128,45 @@ function SystemAdminSetupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#07111c] text-white">
-      <AppHeader title="System Admin Setup" showBackToDashboard />
+    <div className="min-h-screen bg-slate-100 text-slate-950">
+      <AppHeader
+        title="System Admin Setup"
+        subtitle="Configure tables, menu items, and local system tools"
+        showBackToDashboard
+      />
 
-      <main className="max-w-7xl mx-auto p-6 space-y-6">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div>
-            <Link
-              to="/admin"
-              className="text-sm text-slate-400 hover:text-white"
-            >
-              ← Back to System Admin
-            </Link>
-
-            <h1 className="text-3xl font-black mt-3">{activeTitle}</h1>
-            <p className="text-slate-400 mt-1">
-              Configure this section in a simple, practical way for daily
-              restaurant operations.
-            </p>
-          </div>
-        </div>
+      <main className="mx-auto max-w-7xl p-5 space-y-5">
+        <Link to="/admin" className="text-sm font-black text-slate-500">
+          ← Back to System Admin
+        </Link>
 
         {(message || error) && (
           <div
-            className={`rounded-2xl px-5 py-4 border ${
+            className={`border px-5 py-4 text-sm font-black ${
               message
-                ? "bg-green-500/10 border-green-500/30 text-green-300"
-                : "bg-red-500/10 border-red-500/30 text-red-300"
+                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                : "border-red-200 bg-red-50 text-red-700"
             }`}
           >
             {message || error}
           </div>
         )}
 
-        <div className="grid lg:grid-cols-[260px_1fr] gap-6">
-          <aside className="bg-[#111827] border border-slate-800 rounded-3xl p-4 h-fit">
-            <p className="text-xs uppercase tracking-wide text-slate-500 px-3 mb-3">
+        <div className="grid lg:grid-cols-[240px_1fr] gap-5">
+          <aside className="border border-slate-200 bg-white p-3 shadow-sm h-fit">
+            <p className="px-3 pb-3 text-xs font-black uppercase text-slate-400">
               Setup Modules
             </p>
 
-            <div className="space-y-2">
+            <div className="space-y-1">
               {modules.map((item) => (
                 <button
                   key={item.key}
                   onClick={() => setSearchParams({ module: item.key })}
-                  className={`w-full text-left px-4 py-3 rounded-2xl font-bold transition ${
+                  className={`w-full px-4 py-3 text-left text-sm font-black ${
                     activeModule === item.key
-                      ? "bg-purple-600 text-white"
-                      : "text-slate-300 hover:bg-[#0D1117]"
+                      ? "bg-slate-950 text-white"
+                      : "text-slate-700 hover:bg-slate-100"
                   }`}
                 >
                   {item.label}
@@ -188,16 +175,31 @@ function SystemAdminSetupPage() {
 
               <Link
                 to="/users"
-                className="block px-4 py-3 rounded-2xl font-bold text-slate-300 hover:bg-[#0D1117]"
+                className="block px-4 py-3 text-sm font-black text-slate-700 hover:bg-slate-100"
               >
                 Users & Roles
+              </Link>
+
+              <Link
+                to="/settings"
+                className="block px-4 py-3 text-sm font-black text-slate-700 hover:bg-slate-100"
+              >
+                System Settings
               </Link>
             </div>
           </aside>
 
-          <section>
-            {activeModule === "profile" && <ProfileModule />}
-            {activeModule === "branches" && <BranchesModule />}
+          <section className="space-y-5">
+            <div className="border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-xs font-black uppercase text-slate-400">
+                Current Module
+              </p>
+              <h1 className="mt-2 text-3xl font-black">{activeTitle}</h1>
+              <p className="mt-2 text-sm font-semibold text-slate-500">
+                Practical setup for daily restaurant operations.
+              </p>
+            </div>
+
             {activeModule === "tables" && (
               <TablesModule
                 tables={tables}
@@ -206,6 +208,7 @@ function SystemAdminSetupPage() {
                 onCreateTable={handleCreateTable}
               />
             )}
+
             {activeModule === "menu" && (
               <MenuModule
                 categories={categories}
@@ -218,8 +221,7 @@ function SystemAdminSetupPage() {
                 onCreateProduct={handleCreateProduct}
               />
             )}
-            {activeModule === "payments" && <PaymentsModule />}
-            {activeModule === "receipts" && <ReceiptsModule />}
+
             {activeModule === "backup" && <BackupModule />}
           </section>
         </div>
@@ -228,86 +230,9 @@ function SystemAdminSetupPage() {
   );
 }
 
-function ProfileModule() {
-  return (
-    <div className="grid xl:grid-cols-2 gap-6">
-      <Panel
-        title="Business Identity"
-        subtitle="What appears on receipts and reports"
-      >
-        <div className="space-y-4">
-          <Input
-            label="Business Name"
-            value="Zera Restaurant"
-            onChange={() => {}}
-          />
-          <Input
-            label="Business Type"
-            value="Restaurant & Bar"
-            onChange={() => {}}
-          />
-          <Input
-            label="Phone Number"
-            value="+256 700 000 000"
-            onChange={() => {}}
-          />
-          <Input label="Address" value="Kampala, Uganda" onChange={() => {}} />
-          <Input label="TIN / Tax Number" value="" onChange={() => {}} />
-          <Select
-            label="Currency"
-            value="UGX"
-            onChange={() => {}}
-            options={[
-              { value: "UGX", label: "UGX" },
-              { value: "RWF", label: "RWF" },
-              { value: "KES", label: "KES" },
-            ]}
-          />
-        </div>
-      </Panel>
-
-      <Panel title="Design Preview" subtitle="Simple, clear, readable branding">
-        <div className="bg-[#0D1117] border border-slate-800 rounded-3xl p-6">
-          <p className="text-slate-400 text-sm">Receipt Header Preview</p>
-          <h2 className="text-2xl font-black mt-3">Zera Restaurant</h2>
-          <p className="text-slate-400">Kampala, Uganda</p>
-          <p className="text-slate-400">+256 700 000 000</p>
-          <div className="border-t border-dashed border-slate-700 my-5" />
-          <p className="text-sm text-slate-300">
-            These fields will be saved to SQLite in the next backend settings
-            step.
-          </p>
-        </div>
-      </Panel>
-    </div>
-  );
-}
-
-function BranchesModule() {
-  return (
-    <Panel
-      title="Branches"
-      subtitle="Keep one main branch first, add more later"
-    >
-      <div className="grid md:grid-cols-2 gap-4">
-        <InfoCard
-          title="Main Branch"
-          value="Active"
-          text="This desktop device is connected to the main local SQLite database."
-        />
-        <InfoCard
-          title="Multi-Branch"
-          value="Later"
-          text="Cloud sync will handle multiple branches after the local desktop system is stable."
-        />
-      </div>
-    </Panel>
-  );
-}
-
 function TablesModule({ tables, tableForm, setTableForm, onCreateTable }) {
   return (
-    <div className="grid xl:grid-cols-[420px_1fr] gap-6">
+    <div className="grid xl:grid-cols-[420px_1fr] gap-5">
       <Panel
         title="Create Table / Area"
         subtitle="Dining tables, VIP rooms, bar counter"
@@ -320,23 +245,30 @@ function TablesModule({ tables, tableForm, setTableForm, onCreateTable }) {
             placeholder="Example: Table 01, VIP 1, Bar Counter"
             required
           />
+
           <SubmitButton label="Create Table" />
         </form>
       </Panel>
 
       <Panel title="Existing Tables" subtitle={`${tables.length} configured`}>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="divide-y divide-slate-100 border border-slate-200">
           {tables.map((table) => (
             <div
               key={table.id}
-              className="bg-[#0D1117] border border-slate-800 rounded-2xl p-4"
+              className="grid grid-cols-[1fr_120px] px-4 py-3"
             >
-              <p className="font-black">{table.name}</p>
-              <p className="text-xs text-slate-500 capitalize mt-1">
+              <p className="font-black text-slate-950">{table.name}</p>
+              <span className="w-fit bg-slate-100 px-3 py-1 text-xs font-black uppercase text-slate-600">
                 {table.status}
-              </p>
+              </span>
             </div>
           ))}
+
+          {tables.length === 0 && (
+            <div className="p-8 text-center text-sm font-black text-slate-400">
+              No tables created yet.
+            </div>
+          )}
         </div>
       </Panel>
     </div>
@@ -354,8 +286,8 @@ function MenuModule({
   onCreateProduct,
 }) {
   return (
-    <div className="space-y-6">
-      <div className="grid xl:grid-cols-2 gap-6">
+    <div className="space-y-5">
+      <div className="grid xl:grid-cols-[360px_1fr] gap-5">
         <Panel title="Create Category" subtitle="Food, drinks, beers, spirits">
           <form onSubmit={onCreateCategory} className="space-y-4">
             <Input
@@ -367,6 +299,7 @@ function MenuModule({
               placeholder="Example: Soft Drinks"
               required
             />
+
             <Select
               label="Type"
               value={categoryForm.type}
@@ -379,6 +312,7 @@ function MenuModule({
                 { value: "general", label: "General" },
               ]}
             />
+
             <SubmitButton label="Create Category" />
           </form>
         </Panel>
@@ -387,7 +321,10 @@ function MenuModule({
           title="Create Product"
           subtitle="Menu item, drink, or stock item"
         >
-          <form onSubmit={onCreateProduct} className="space-y-4">
+          <form
+            onSubmit={onCreateProduct}
+            className="grid md:grid-cols-2 gap-4"
+          >
             <Input
               label="Product Name"
               value={productForm.name}
@@ -413,54 +350,60 @@ function MenuModule({
               ]}
             />
 
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                label="Selling Price"
-                type="number"
-                value={productForm.price}
-                onChange={(value) =>
-                  setProductForm((prev) => ({ ...prev, price: value }))
-                }
-                required
-              />
-              <Input
-                label="Cost Price"
-                type="number"
-                value={productForm.cost_price}
-                onChange={(value) =>
-                  setProductForm((prev) => ({ ...prev, cost_price: value }))
-                }
-              />
-            </div>
+            <Input
+              label="Selling Price"
+              type="number"
+              value={productForm.price}
+              onChange={(value) =>
+                setProductForm((prev) => ({ ...prev, price: value }))
+              }
+              required
+            />
 
-            <div className="grid grid-cols-2 gap-3">
-              <Select
-                label="Item Type"
-                value={productForm.item_type}
-                onChange={(value) =>
-                  setProductForm((prev) => ({ ...prev, item_type: value }))
-                }
-                options={[
-                  { value: "food", label: "Food" },
-                  { value: "drink", label: "Drink" },
-                  { value: "general", label: "General" },
-                ]}
-              />
-              <Select
-                label="Send To"
-                value={productForm.send_to}
-                onChange={(value) =>
-                  setProductForm((prev) => ({ ...prev, send_to: value }))
-                }
-                options={[
-                  { value: "kitchen", label: "Kitchen" },
-                  { value: "bar", label: "Bar" },
-                  { value: "none", label: "None" },
-                ]}
-              />
-            </div>
+            <Input
+              label="Cost Price"
+              type="number"
+              value={productForm.cost_price}
+              onChange={(value) =>
+                setProductForm((prev) => ({ ...prev, cost_price: value }))
+              }
+            />
 
-            <label className="flex items-center gap-3 bg-[#0D1117] border border-slate-700 rounded-2xl px-4 py-3">
+            <Select
+              label="Item Type"
+              value={productForm.item_type}
+              onChange={(value) =>
+                setProductForm((prev) => ({ ...prev, item_type: value }))
+              }
+              options={[
+                { value: "food", label: "Food" },
+                { value: "drink", label: "Drink" },
+                { value: "general", label: "General" },
+              ]}
+            />
+
+            <Select
+              label="Send To"
+              value={productForm.send_to}
+              onChange={(value) =>
+                setProductForm((prev) => ({ ...prev, send_to: value }))
+              }
+              options={[
+                { value: "kitchen", label: "Kitchen Screen" },
+                { value: "bar", label: "Bar Screen" },
+                { value: "none", label: "No production screen" },
+              ]}
+            />
+
+            <label className="md:col-span-2 flex items-center justify-between border border-slate-200 bg-slate-50 px-4 py-3">
+              <div>
+                <p className="text-sm font-black text-slate-950">Track Stock</p>
+                <p className="text-xs font-semibold text-slate-500">
+                  Use this for drinks or inventory items that need quantity
+                  control.
+                </p>
+              </div>
+
               <input
                 type="checkbox"
                 checked={productForm.track_stock}
@@ -471,13 +414,10 @@ function MenuModule({
                   }))
                 }
               />
-              <span className="text-sm text-slate-300">
-                Track stock for this item
-              </span>
             </label>
 
             {productForm.track_stock && (
-              <div className="grid grid-cols-2 gap-3">
+              <>
                 <Input
                   label="Stock Qty"
                   type="number"
@@ -489,6 +429,7 @@ function MenuModule({
                     }))
                   }
                 />
+
                 <Input
                   label="Low Stock Level"
                   type="number"
@@ -500,10 +441,12 @@ function MenuModule({
                     }))
                   }
                 />
-              </div>
+              </>
             )}
 
-            <SubmitButton label="Create Product" />
+            <div className="md:col-span-2">
+              <SubmitButton label="Create Product" />
+            </div>
           </form>
         </Panel>
       </div>
@@ -512,124 +455,62 @@ function MenuModule({
         title="Current Menu"
         subtitle={`${products.length} products configured`}
       >
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
+        <div className="divide-y divide-slate-100 border border-slate-200">
           {products.map((product) => (
             <div
               key={product.id}
-              className="bg-[#0D1117] border border-slate-800 rounded-2xl p-4"
+              className="grid gap-3 px-4 py-3 md:grid-cols-[1fr_140px_140px_120px] md:items-center"
             >
-              <div className="flex justify-between gap-3">
-                <p className="font-black">{product.name}</p>
-                <p className="text-green-400 font-black">
-                  {Number(product.price).toLocaleString()}
+              <div>
+                <p className="font-black text-slate-950">{product.name}</p>
+                <p className="text-sm font-semibold text-slate-500">
+                  {product.category_name || product.item_type}
                 </p>
               </div>
-              <p className="text-sm text-slate-500 mt-1">
-                {product.category_name || product.item_type} • {product.send_to}
-              </p>
+
+              <span className="font-black text-emerald-600">
+                {Number(product.price).toLocaleString()}
+              </span>
+
+              <span className="text-sm font-black text-slate-700">
+                {product.send_to || "none"}
+              </span>
+
+              <span className="w-fit bg-slate-100 px-3 py-1 text-xs font-black uppercase text-slate-600">
+                {product.item_type}
+              </span>
             </div>
           ))}
+
+          {products.length === 0 && (
+            <div className="p-8 text-center text-sm font-black text-slate-400">
+              No products created yet.
+            </div>
+          )}
         </div>
       </Panel>
     </div>
   );
 }
 
-function PaymentsModule() {
-  return (
-    <Panel title="Payment Settings" subtitle="Control accepted payment methods">
-      <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
-        <InfoCard
-          title="Cash"
-          value="Enabled"
-          text="Cashier can receive cash payments."
-        />
-        <InfoCard
-          title="Mobile Money"
-          value="Enabled"
-          text="Manual MTN/Airtel reference entry."
-        />
-        <InfoCard
-          title="Card"
-          value="Enabled"
-          text="Manual card transaction reference."
-        />
-        <InfoCard
-          title="Split Payment"
-          value="Coming"
-          text="Will be added after single-payment flow is complete."
-        />
-      </div>
-    </Panel>
-  );
-}
-
-function ReceiptsModule() {
-  return (
-    <Panel
-      title="Receipt Settings"
-      subtitle="Prepare receipt structure for thermal printing"
-    >
-      <div className="grid xl:grid-cols-2 gap-6">
-        <div className="space-y-4">
-          <Input
-            label="Receipt Footer"
-            value="Thank you for choosing us"
-            onChange={() => {}}
-          />
-          <Input label="Tax Label" value="TIN" onChange={() => {}} />
-          <Select
-            label="Receipt Width"
-            value="80mm"
-            onChange={() => {}}
-            options={[
-              { value: "58mm", label: "58mm" },
-              { value: "80mm", label: "80mm" },
-            ]}
-          />
-        </div>
-
-        <div className="bg-white text-black rounded-3xl p-6 font-mono text-sm">
-          <h3 className="font-black text-center">ZERA RESTAURANT</h3>
-          <p className="text-center">Kampala, Uganda</p>
-          <div className="border-t border-black my-3" />
-          <p>Receipt #: DEMO-001</p>
-          <p>Cashier: Admin</p>
-          <div className="border-t border-black my-3" />
-          <div className="flex justify-between">
-            <span>Nile Special x2</span>
-            <span>10,000</span>
-          </div>
-          <div className="border-t border-black my-3" />
-          <div className="flex justify-between font-black">
-            <span>TOTAL</span>
-            <span>UGX 10,000</span>
-          </div>
-          <p className="text-center mt-5">Thank you for choosing us</p>
-        </div>
-      </div>
-    </Panel>
-  );
-}
-
 function BackupModule() {
   return (
     <Panel title="Backup & Sync" subtitle="Protect local business data">
-      <div className="grid md:grid-cols-3 gap-4">
+      <div className="grid md:grid-cols-3 gap-3">
         <InfoCard
           title="Local SQLite"
           value="Primary"
-          text="The desktop database remains the source of truth."
+          text="The desktop database remains the source of truth for offline operations."
         />
         <InfoCard
           title="Manual Backup"
-          value="Needed"
-          text="Next: add a button to copy the SQLite file safely."
+          value="Next"
+          text="We will add a safe backup button that copies the SQLite database file."
         />
         <InfoCard
           title="Cloud Sync"
           value="Later"
-          text="Sync will be optional for paying cloud customers."
+          text="Optional cloud sync can be added for multi-device or premium packages."
         />
       </div>
     </Panel>
@@ -638,9 +519,11 @@ function BackupModule() {
 
 function Panel({ title, subtitle, children }) {
   return (
-    <section className="bg-[#111827] border border-slate-800 rounded-3xl p-6">
-      <h2 className="text-xl font-black">{title}</h2>
-      <p className="text-slate-400 text-sm mt-1 mb-5">{subtitle}</p>
+    <section className="border border-slate-200 bg-white p-5 shadow-sm">
+      <h2 className="text-xl font-black text-slate-950">{title}</h2>
+      <p className="mt-1 mb-5 text-sm font-semibold text-slate-500">
+        {subtitle}
+      </p>
       {children}
     </section>
   );
@@ -656,14 +539,14 @@ function Input({
 }) {
   return (
     <label className="block">
-      <span className="text-sm text-slate-400">{label}</span>
+      <span className="text-sm font-black text-slate-700">{label}</span>
       <input
         type={type}
         value={value}
         required={required}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full mt-2 bg-[#0D1117] border border-slate-700 rounded-2xl px-4 py-3 outline-none focus:border-purple-500"
+        className="mt-2 h-12 w-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-950 outline-none focus:border-slate-500"
       />
     </label>
   );
@@ -672,11 +555,11 @@ function Input({
 function Select({ label, value, onChange, options }) {
   return (
     <label className="block">
-      <span className="text-sm text-slate-400">{label}</span>
+      <span className="text-sm font-black text-slate-700">{label}</span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full mt-2 bg-[#0D1117] border border-slate-700 rounded-2xl px-4 py-3 outline-none focus:border-purple-500"
+        className="mt-2 h-12 w-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-950 outline-none focus:border-slate-500"
       >
         {options.map((option) => (
           <option key={option.value || option.label} value={option.value}>
@@ -690,7 +573,7 @@ function Select({ label, value, onChange, options }) {
 
 function SubmitButton({ label }) {
   return (
-    <button className="w-full bg-purple-600 hover:bg-purple-700 rounded-2xl py-4 font-black">
+    <button className="h-12 w-full bg-slate-950 px-4 text-sm font-black text-white hover:bg-slate-800">
       {label}
     </button>
   );
@@ -698,10 +581,12 @@ function SubmitButton({ label }) {
 
 function InfoCard({ title, value, text }) {
   return (
-    <div className="bg-[#0D1117] border border-slate-800 rounded-3xl p-5">
-      <p className="text-slate-400 text-sm">{title}</p>
-      <h3 className="text-xl font-black mt-2">{value}</h3>
-      <p className="text-slate-500 text-sm mt-3 leading-6">{text}</p>
+    <div className="border border-slate-200 bg-slate-50 p-4">
+      <p className="text-xs font-black uppercase text-slate-400">{title}</p>
+      <h3 className="mt-2 text-xl font-black text-slate-950">{value}</h3>
+      <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+        {text}
+      </p>
     </div>
   );
 }

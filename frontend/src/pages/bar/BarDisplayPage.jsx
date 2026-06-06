@@ -6,27 +6,6 @@ import { isBarScreenEnabled } from "../../utils/businessSettings";
 function BarDisplayPage() {
   const barScreenEnabled = isBarScreenEnabled();
 
-  if (!barScreenEnabled) {
-    return (
-      <div className="min-h-screen bg-slate-100 text-slate-950">
-        <AppHeader
-          title="Bar Screen Disabled"
-          subtitle="This business is currently using paper bar tickets instead of a bar screen."
-          showBackToDashboard={true}
-        />
-
-        <main className="p-6">
-          <div className="max-w-xl rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-2xl font-black">Bar screen is not active</h2>
-            <p className="mt-3 text-sm font-semibold text-slate-500">
-              Enable Bar Screen in Settings if this restaurant has a bar display
-              device.
-            </p>
-          </div>
-        </main>
-      </div>
-    );
-  }
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
@@ -62,6 +41,11 @@ function BarDisplayPage() {
   }
 
   useEffect(() => {
+    if (!barScreenEnabled) {
+      setLoading(false);
+      return;
+    }
+
     loadQueue();
 
     const interval = setInterval(() => {
@@ -69,7 +53,7 @@ function BarDisplayPage() {
     }, 3000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [barScreenEnabled]);
 
   const stats = useMemo(() => {
     return {
@@ -89,7 +73,6 @@ function BarDisplayPage() {
           order_id: item.order_id,
           order_number: item.order_number,
           table_name: item.table_name || "Takeaway",
-          order_type: item.order_type,
           created_at: item.created_at,
           items: [],
         };
@@ -126,31 +109,29 @@ function BarDisplayPage() {
 
       oscillator.start();
       oscillator.stop(audioContext.currentTime + 0.15);
-    } catch {
-      // Browser may block sound until user interacts. This is okay.
-    }
+    } catch {}
+  }
+
+  if (!barScreenEnabled) {
+    return <DisabledScreen type="Bar" />;
   }
 
   return (
-    <div className="min-h-screen bg-[#0D1117] text-white">
+    <div className="min-h-screen bg-slate-100 text-slate-950">
       <AppHeader
-        title="Bar Display"
-        subtitle="Drinks and bar preparation queue"
+        title="Bar Production"
+        subtitle="Drink orders waiting for preparation"
         showBackToDashboard={true}
       />
 
-      <main className="p-6 max-w-[1800px] mx-auto space-y-6">
-        {error && (
-          <div className="bg-red-500/10 border border-red-500 text-red-300 rounded-2xl px-5 py-4">
-            {error}
-          </div>
-        )}
+      <main className="mx-auto max-w-[1600px] p-5 space-y-5">
+        {error && <ErrorBox message={error} />}
 
-        <section className="grid md:grid-cols-4 gap-4">
-          <StatusCard label="Total Drinks" value={stats.total} />
-          <StatusCard label="Pending" value={stats.pending} tone="yellow" />
-          <StatusCard label="Preparing" value={stats.preparing} tone="blue" />
-          <StatusCard label="Ready" value={stats.ready} tone="green" />
+        <section className="grid md:grid-cols-4 gap-3">
+          <StatusCard label="Total Items" value={stats.total} />
+          <StatusCard label="Pending" value={stats.pending} />
+          <StatusCard label="Preparing" value={stats.preparing} />
+          <StatusCard label="Ready" value={stats.ready} />
         </section>
 
         {loading ? (
@@ -158,14 +139,13 @@ function BarDisplayPage() {
         ) : items.length === 0 ? (
           <EmptyState text="No bar items waiting." />
         ) : (
-          <section className="grid lg:grid-cols-2 2xl:grid-cols-3 gap-5">
+          <section className="grid xl:grid-cols-2 2xl:grid-cols-3 gap-4">
             {Object.values(groupedOrders).map((order) => (
               <OrderTicket
                 key={order.order_id}
                 order={order}
                 updatingId={updatingId}
                 onStatusUpdate={handleStatusUpdate}
-                station="bar"
               />
             ))}
           </section>
@@ -175,67 +155,63 @@ function BarDisplayPage() {
   );
 }
 
-function OrderTicket({ order, updatingId, onStatusUpdate, station }) {
+function OrderTicket({ order, updatingId, onStatusUpdate }) {
   return (
-    <div className="bg-[#111827] border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
-      <div className="p-5 border-b border-slate-800 flex items-start justify-between gap-4">
+    <div className="overflow-hidden border border-slate-200 bg-white shadow-sm">
+      <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-4 py-3">
         <div>
-          <p className="text-sm text-slate-400 uppercase font-bold">
-            {station} ticket
+          <p className="text-xs font-black uppercase text-slate-400">
+            Bar Ticket
           </p>
-          <h2 className="text-2xl font-black mt-1">{order.table_name}</h2>
-          <p className="text-slate-400 mt-1">
+          <h2 className="mt-1 text-2xl font-black text-slate-950">
+            {order.table_name}
+          </h2>
+          <p className="mt-1 text-sm font-semibold text-slate-500">
             {order.order_number} • {formatTime(order.created_at)}
           </p>
         </div>
 
-        <span className="bg-pink-500/10 text-pink-300 border border-pink-500/30 px-4 py-2 rounded-2xl font-black">
+        <span className="bg-blue-100 px-3 py-2 text-sm font-black text-blue-700">
           {order.items.length} item{order.items.length !== 1 ? "s" : ""}
         </span>
       </div>
 
-      <div className="p-5 space-y-4">
+      <div className="divide-y divide-slate-100">
         {order.items.map((item) => (
-          <div
-            key={item.id}
-            className={`rounded-3xl border p-4 ${getItemStatusStyle(
-              item.status
-            )}`}
-          >
+          <div key={item.id} className="px-4 py-4">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-2xl font-black">{item.product_name}</h3>
-                <p className="text-slate-400 text-lg mt-1">
-                  Quantity:{" "}
-                  <span className="font-black text-white">{item.quantity}</span>
+                <h3 className="text-xl font-black text-slate-950">
+                  {item.product_name}
+                </h3>
+                <p className="mt-1 text-sm font-semibold text-slate-500">
+                  Qty:{" "}
+                  <span className="font-black text-slate-950">
+                    {item.quantity}
+                  </span>
                 </p>
               </div>
 
-              <span className="uppercase text-xs bg-black/20 border border-white/10 px-3 py-1 rounded-full font-black">
-                {item.status}
-              </span>
+              <StatusBadge status={item.status} />
             </div>
 
-            <div className="grid grid-cols-3 gap-3 mt-5">
+            <div className="mt-4 grid grid-cols-3 gap-2">
               <ActionButton
                 label="Preparing"
                 disabled={updatingId === item.id || item.status === "preparing"}
                 onClick={() => onStatusUpdate(item, "preparing")}
-                className="bg-blue-600 hover:bg-blue-700"
               />
 
               <ActionButton
                 label="Ready"
                 disabled={updatingId === item.id || item.status === "ready"}
                 onClick={() => onStatusUpdate(item, "ready")}
-                className="bg-green-600 hover:bg-green-700"
               />
 
               <ActionButton
                 label="Served"
                 disabled={updatingId === item.id}
                 onClick={() => onStatusUpdate(item, "served")}
-                className="bg-purple-600 hover:bg-purple-700"
               />
             </div>
           </div>
@@ -245,56 +221,71 @@ function OrderTicket({ order, updatingId, onStatusUpdate, station }) {
   );
 }
 
-function StatusCard({ label, value, tone = "slate" }) {
-  const styles = {
-    slate: "border-slate-800 bg-[#111827] text-white",
-    yellow: "border-yellow-500/30 bg-yellow-500/10 text-yellow-300",
-    blue: "border-blue-500/30 bg-blue-500/10 text-blue-300",
-    green: "border-green-500/30 bg-green-500/10 text-green-300",
-  };
-
+function StatusCard({ label, value }) {
   return (
-    <div className={`rounded-3xl border p-5 ${styles[tone]}`}>
-      <p className="text-sm opacity-80">{label}</p>
-      <h2 className="text-4xl font-black mt-2">{value}</h2>
+    <div className="border border-slate-200 bg-white px-4 py-3 shadow-sm">
+      <p className="text-xs font-black uppercase text-slate-400">{label}</p>
+      <h2 className="mt-2 text-3xl font-black text-slate-950">{value}</h2>
     </div>
+  );
+}
+
+function StatusBadge({ status }) {
+  return (
+    <span className="bg-slate-100 px-3 py-1 text-xs font-black uppercase text-slate-700">
+      {status}
+    </span>
   );
 }
 
 function EmptyState({ text }) {
   return (
-    <div className="bg-[#111827] border border-slate-800 rounded-3xl p-8 text-slate-400">
+    <div className="border border-slate-200 bg-white p-8 text-sm font-black text-slate-400 shadow-sm">
       {text}
     </div>
   );
 }
 
-function ActionButton({ label, onClick, disabled, className }) {
+function ErrorBox({ message }) {
+  return (
+    <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm font-black text-red-700">
+      {message}
+    </div>
+  );
+}
+
+function DisabledScreen({ type }) {
+  return (
+    <div className="min-h-screen bg-slate-100 text-slate-950">
+      <AppHeader
+        title={`${type} Screen Disabled`}
+        subtitle={`This business is currently not using the ${type.toLowerCase()} display screen.`}
+        showBackToDashboard={true}
+      />
+
+      <main className="p-6">
+        <div className="max-w-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-2xl font-black">{type} screen is not active</h2>
+          <p className="mt-3 text-sm font-semibold text-slate-500">
+            Enable it in Settings only if this restaurant has a separate{" "}
+            {type.toLowerCase()} display device.
+          </p>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function ActionButton({ label, onClick, disabled }) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`${className} disabled:opacity-40 rounded-2xl py-4 font-black`}
+      className="bg-slate-950 px-3 py-3 text-sm font-black text-white disabled:opacity-40"
     >
       {label}
     </button>
   );
-}
-
-function getItemStatusStyle(status) {
-  if (status === "pending") {
-    return "bg-yellow-500/10 border-yellow-500/30";
-  }
-
-  if (status === "preparing") {
-    return "bg-blue-500/10 border-blue-500/30";
-  }
-
-  if (status === "ready") {
-    return "bg-green-500/10 border-green-500/30";
-  }
-
-  return "bg-[#0D1117] border-slate-800";
 }
 
 function formatTime(value) {

@@ -40,8 +40,8 @@ function MyOrdersHistoryPage() {
 
       <main className="max-w-7xl mx-auto p-6">
         <div className="flex items-center justify-between gap-4 mb-6">
-          <Link to="/dashboard" className="text-slate-300 hover:text-white">
-            ← Back to Dashboard
+          <Link to="/pos" className="text-slate-300 hover:text-white">
+            ← Back to POS
           </Link>
 
           <input

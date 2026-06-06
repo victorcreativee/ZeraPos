@@ -1,6 +1,5 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import LoginPage from "./pages/LoginPage";
-import DashboardPage from "./pages/DashboardPage";
 import UsersPage from "./pages/UsersPage";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import POSPage from "./pages/pos/POSPage";
@@ -14,19 +13,33 @@ import BarDisplayPage from "./pages/bar/BarDisplayPage";
 import SystemAdminSetupPage from "./pages/SystemAdminSetupPage";
 import PreviousOrdersPage from "./pages/orders/PreviousOrdersPage";
 import SettingsPage from "./pages/SettingsPage";
+import { getAuthUser } from "./utils/authSession";
+
+function DashboardRedirect() {
+  const user = getAuthUser();
+  const role = user?.role;
+
+  if (role === "admin") return <Navigate to="/admin" replace />;
+  if (role === "manager") return <Navigate to="/manager" replace />;
+  if (role === "cashier") return <Navigate to="/counter" replace />;
+  if (role === "kitchen") return <Navigate to="/kitchen" replace />;
+  if (role === "bar") return <Navigate to="/bar" replace />;
+  if (role === "server") return <Navigate to="/pos" replace />;
+
+  return <Navigate to="/login" replace />;
+}
 
 function App() {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/login" replace />} />
-
       <Route path="/login" element={<LoginPage />} />
 
       <Route
         path="/dashboard"
         element={
           <ProtectedRoute>
-            <DashboardPage />
+            <DashboardRedirect />
           </ProtectedRoute>
         }
       />
@@ -48,6 +61,7 @@ function App() {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/orders/open"
         element={
@@ -56,6 +70,7 @@ function App() {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/orders/history"
         element={
@@ -64,6 +79,7 @@ function App() {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/manager"
         element={
@@ -72,6 +88,7 @@ function App() {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/admin"
         element={
@@ -80,6 +97,7 @@ function App() {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/counter"
         element={
@@ -88,6 +106,7 @@ function App() {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/kitchen"
         element={
@@ -96,6 +115,7 @@ function App() {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/bar"
         element={
@@ -104,6 +124,7 @@ function App() {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/admin/setup"
         element={
@@ -112,6 +133,7 @@ function App() {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/admin/branches"
         element={
@@ -165,6 +187,7 @@ function App() {
           </ProtectedRoute>
         }
       />
+
       <Route path="/orders" element={<PreviousOrdersPage />} />
       <Route path="/settings" element={<SettingsPage />} />
     </Routes>

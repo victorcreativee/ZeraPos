@@ -19,7 +19,7 @@ function AppHeader({
     if (user?.role === "server") return "/pos";
     if (user?.role === "kitchen") return "/kitchen";
     if (user?.role === "bar") return "/bar";
-    return "/dashboard";
+    return "/pos";
   }
 
   function handleLogout() {
