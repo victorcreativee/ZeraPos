@@ -28,6 +28,7 @@ function getTables() {
       FROM restaurant_tables
       LEFT JOIN orders
         ON orders.table_id = restaurant_tables.id
+      WHERE COALESCE(restaurant_tables.is_active, 1) = 1
       GROUP BY restaurant_tables.id
       ORDER BY restaurant_tables.id ASC
       `,
@@ -174,9 +175,45 @@ function getTableActiveBill(tableId) {
   });
 }
 
+function deactivateTable(tableId) {
+  return new Promise((resolve, reject) => {
+    db.get(
+      `
+      SELECT COUNT(*) AS open_count
+      FROM orders
+      WHERE table_id = ?
+      AND status NOT IN ('paid', 'cancelled')
+      `,
+      [tableId],
+      (countErr, row) => {
+        if (countErr) return reject(countErr);
+
+        if (Number(row?.open_count || 0) > 0) {
+          return reject(new Error("Cannot deactivate a table with open unpaid orders"));
+        }
+
+        db.run(
+          `
+          UPDATE restaurant_tables
+          SET is_active = 0, status = 'inactive'
+          WHERE id = ?
+          `,
+          [tableId],
+          function (err) {
+            if (err) return reject(err);
+            if (this.changes === 0) return reject(new Error("Table not found"));
+            resolve({ id: Number(tableId), is_active: 0, status: "inactive" });
+          }
+        );
+      }
+    );
+  });
+}
+
 module.exports = {
   getTables,
   createTable,
   updateTable,
   getTableActiveBill,
+  deactivateTable,
 };

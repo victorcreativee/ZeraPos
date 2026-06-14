@@ -23,4 +23,12 @@ router.put(
   allowRoles("admin", "manager"),
   tablesController.updateTable
 );
+
+router.patch(
+  "/:id/deactivate",
+  requireAuth,
+  allowRoles("admin", "manager"),
+  tablesController.deactivateTable
+);
+
 module.exports = router;

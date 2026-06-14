@@ -5,8 +5,11 @@ import {
   createCategory,
   createProduct,
   updateProduct,
+  deactivateProduct,
+  getLowStockProducts,
   createTable,
   updateTable,
+  deactivateTable,
   getCategories,
   getProducts,
   getTables,
@@ -15,6 +18,7 @@ import {
 const modules = [
   { key: "tables", label: "Tables", title: "Tables & Areas" },
   { key: "menu", label: "Menu", title: "Menu Setup" },
+  { key: "inventory", label: "Inventory", title: "Inventory Foundation" },
   { key: "backup", label: "Backup", title: "Backup & Sync" },
 ];
 
@@ -25,6 +29,7 @@ function SystemAdminSetupPage() {
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
   const [tables, setTables] = useState([]);
+  const [lowStockProducts, setLowStockProducts] = useState([]);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -55,12 +60,18 @@ function SystemAdminSetupPage() {
   }, [activeModule]);
 
   async function loadSetupData() {
-    const [categoryResponse, productResponse, tableResponse] =
-      await Promise.all([getCategories(), getProducts(), getTables()]);
+    const [categoryResponse, productResponse, tableResponse, lowStockResponse] =
+      await Promise.all([
+        getCategories(),
+        getProducts(),
+        getTables(),
+        getLowStockProducts(),
+      ]);
 
     setCategories(categoryResponse.data || []);
     setProducts(productResponse.data || []);
     setTables(tableResponse.data || []);
+    setLowStockProducts(lowStockResponse.data || []);
   }
 
   useEffect(() => {
@@ -160,6 +171,39 @@ function SystemAdminSetupPage() {
       showSuccess("Product updated successfully");
     } catch (err) {
       showError(err, "Failed to update product");
+    }
+  }
+
+
+  async function handleDeactivateProduct(product) {
+    const hasConfirmed = window.confirm(
+      `Deactivate ${product.name}? It will be hidden from new orders but old orders remain safe.`
+    );
+
+    if (!hasConfirmed) return;
+
+    try {
+      await deactivateProduct(product.id);
+      await loadSetupData();
+      showSuccess("Product deactivated successfully");
+    } catch (err) {
+      showError(err, "Failed to deactivate product");
+    }
+  }
+
+  async function handleDeactivateTable(table) {
+    const hasConfirmed = window.confirm(
+      `Deactivate ${table.name}? This is only allowed when the table has no unpaid orders.`
+    );
+
+    if (!hasConfirmed) return;
+
+    try {
+      await deactivateTable(table.id);
+      await loadSetupData();
+      showSuccess("Table deactivated successfully");
+    } catch (err) {
+      showError(err, "Failed to deactivate table");
     }
   }
 
@@ -264,6 +308,7 @@ function SystemAdminSetupPage() {
             onCreateTable={handleCreateTable}
             onRefresh={loadSetupData}
             onEditTable={startEditTable}
+            onDeactivateTable={handleDeactivateTable}
           />
         )}
 
@@ -278,7 +323,12 @@ function SystemAdminSetupPage() {
             onCreateCategory={handleCreateCategory}
             onCreateProduct={handleCreateProduct}
             onEditProduct={startEditProduct}
+            onDeactivateProduct={handleDeactivateProduct}
           />
+        )}
+
+        {activeModule === "inventory" && (
+          <InventoryModule products={products} lowStockProducts={lowStockProducts} />
         )}
 
         {activeModule === "backup" && <BackupModule />}
@@ -316,6 +366,7 @@ function TablesModule({
   onCreateTable,
   onRefresh,
   onEditTable,
+  onDeactivateTable,
 }) {
   return (
     <div className="grid xl:grid-cols-[380px_1fr] gap-5">
@@ -400,6 +451,14 @@ function TablesModule({
                       >
                         Edit
                       </button>
+
+                      <button
+                        type="button"
+                        onClick={() => onDeactivateTable(table)}
+                        className="border border-red-200 bg-white px-3 py-1 text-xs font-black text-red-600 hover:bg-red-50"
+                      >
+                        Deactivate
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -422,6 +481,7 @@ function MenuModule({
   onCreateCategory,
   onCreateProduct,
   onEditProduct,
+  onDeactivateProduct,
 }) {
   return (
     <div className="space-y-5">
@@ -641,15 +701,87 @@ function MenuModule({
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => onEditProduct(product)}
-                  className="mt-3 h-9 w-full border border-slate-200 bg-white text-xs font-black text-slate-700 hover:bg-slate-50"
-                >
-                  Edit Product
-                </button>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onEditProduct(product)}
+                    className="h-9 border border-slate-200 bg-white text-xs font-black text-slate-700 hover:bg-slate-50"
+                  >
+                    Edit
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => onDeactivateProduct(product)}
+                    className="h-9 border border-red-200 bg-white text-xs font-black text-red-600 hover:bg-red-50"
+                  >
+                    Deactivate
+                  </button>
+                </div>
               </div>
             ))}
+          </div>
+        )}
+      </Panel>
+    </div>
+  );
+}
+
+function InventoryModule({ products, lowStockProducts }) {
+  const trackedProducts = products.filter((product) => Number(product.track_stock) === 1);
+  const stockValue = trackedProducts.reduce((sum, product) => {
+    return sum + Number(product.stock_quantity || 0) * Number(product.cost_price || 0);
+  }, 0);
+
+  return (
+    <div className="space-y-5">
+      <div className="grid md:grid-cols-3 gap-3">
+        <InfoCard
+          title="Tracked Items"
+          value={trackedProducts.length}
+          text="Products where stock quantity is controlled."
+        />
+        <InfoCard
+          title="Low Stock"
+          value={lowStockProducts.length}
+          text="Items at or below their warning level."
+        />
+        <InfoCard
+          title="Stock Value"
+          value={Number(stockValue || 0).toLocaleString()}
+          text="Estimated value based on cost price and current quantity."
+        />
+      </div>
+
+      <Panel title="Low Stock Items" subtitle="Operational warning list for admin or manager">
+        {lowStockProducts.length === 0 ? (
+          <div className="border border-slate-200 bg-slate-50 p-8 text-center text-sm font-black text-slate-400">
+            No low stock items right now.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 text-left text-xs font-black uppercase text-slate-400">
+                  <th className="py-3 pr-3">Product</th>
+                  <th className="py-3 pr-3">Category</th>
+                  <th className="py-3 pr-3">Qty</th>
+                  <th className="py-3 pr-3">Low Level</th>
+                  <th className="py-3 pr-3">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lowStockProducts.map((product) => (
+                  <tr key={product.id} className="border-b border-slate-100 font-bold text-slate-700">
+                    <td className="py-3 pr-3 font-black text-slate-950">{product.name}</td>
+                    <td className="py-3 pr-3">{product.category_name || "-"}</td>
+                    <td className="py-3 pr-3">{Number(product.stock_quantity || 0).toLocaleString()}</td>
+                    <td className="py-3 pr-3">{Number(product.low_stock_level || 0).toLocaleString()}</td>
+                    <td className="py-3 pr-3">{product.stock_status?.replaceAll("_", " ") || "low stock"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </Panel>

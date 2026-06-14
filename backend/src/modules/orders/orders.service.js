@@ -55,6 +55,123 @@ function validateItems(items) {
     }
   });
 }
+
+function applyStockSaleMovement({ productId, quantity, orderId }) {
+  db.get(
+    `
+    SELECT id, track_stock, stock_quantity
+    FROM products
+    WHERE id = ?
+    `,
+    [productId],
+    (err, product) => {
+      if (err || !product || Number(product.track_stock) !== 1) return;
+
+      const previousQty = Number(product.stock_quantity || 0);
+      const soldQty = Number(quantity || 0);
+      const nextQty = previousQty - soldQty;
+
+      db.run(
+        `
+        UPDATE products
+        SET stock_quantity = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+        `,
+        [nextQty, productId]
+      );
+
+      db.run(
+        `
+        INSERT INTO stock_movements
+        (
+          product_id,
+          movement_type,
+          quantity,
+          previous_quantity,
+          new_quantity,
+          reference_type,
+          reference_id,
+          note
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        [
+          productId,
+          "sale",
+          soldQty,
+          previousQty,
+          nextQty,
+          "order",
+          orderId,
+          "Stock reduced after order was sent",
+        ]
+      );
+    }
+  );
+}
+
+function restoreCancelledOrderStock(orderId) {
+  db.all(
+    `
+    SELECT
+      order_items.product_id,
+      order_items.quantity,
+      products.track_stock,
+      products.stock_quantity
+    FROM order_items
+    LEFT JOIN products ON products.id = order_items.product_id
+    WHERE order_items.order_id = ?
+    AND products.track_stock = 1
+    `,
+    [orderId],
+    (err, items) => {
+      if (err || !items?.length) return;
+
+      items.forEach((item) => {
+        const previousQty = Number(item.stock_quantity || 0);
+        const restoredQty = Number(item.quantity || 0);
+        const nextQty = previousQty + restoredQty;
+
+        db.run(
+          `
+          UPDATE products
+          SET stock_quantity = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+          `,
+          [nextQty, item.product_id]
+        );
+
+        db.run(
+          `
+          INSERT INTO stock_movements
+          (
+            product_id,
+            movement_type,
+            quantity,
+            previous_quantity,
+            new_quantity,
+            reference_type,
+            reference_id,
+            note
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          `,
+          [
+            item.product_id,
+            "cancel_restore",
+            restoredQty,
+            previousQty,
+            nextQty,
+            "order",
+            orderId,
+            "Stock restored after order cancellation",
+          ]
+        );
+      });
+    }
+  );
+}
+
 function refreshTableStatus(tableId) {
   if (!tableId) return;
 
@@ -171,16 +288,11 @@ async function createOrder(data) {
               item.send_to || "none",
             ]);
 
-            if (item.track_stock) {
-              db.run(
-                `
-                UPDATE products
-                SET stock_quantity = stock_quantity - ?
-                WHERE id = ?
-                `,
-                [Number(item.quantity), item.id]
-              );
-            }
+            applyStockSaleMovement({
+              productId: item.id,
+              quantity: item.quantity,
+              orderId,
+            });
           });
 
           stmt.finalize();
@@ -417,6 +529,7 @@ function cancelOrder({ order_id, reason, cancelled_by }) {
               [ITEM_STATUSES.CANCELLED, order_id]
             );
 
+            restoreCancelledOrderStock(order_id);
             refreshTableStatus(order.table_id);
 
             resolve({

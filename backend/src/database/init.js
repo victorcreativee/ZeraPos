@@ -135,6 +135,23 @@ function initDatabase() {
       )
     `);
     db.run(`
+      CREATE TABLE IF NOT EXISTS stock_movements (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        product_id INTEGER NOT NULL,
+        movement_type TEXT NOT NULL,
+        quantity REAL NOT NULL,
+        previous_quantity REAL DEFAULT 0,
+        new_quantity REAL DEFAULT 0,
+        reference_type TEXT,
+        reference_id INTEGER,
+        note TEXT,
+        created_by INTEGER,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (product_id) REFERENCES products(id),
+        FOREIGN KEY (created_by) REFERENCES users(id)
+      )
+    `);
+    db.run(`
       CREATE TABLE IF NOT EXISTS print_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         order_id INTEGER NOT NULL,
@@ -176,6 +193,9 @@ function initDatabase() {
       INSERT OR IGNORE INTO system_settings (id)
       VALUES (1)
     `);
+    addColumnIfMissing("restaurant_tables", "is_active", "INTEGER DEFAULT 1");
+    addColumnIfMissing("products", "updated_at", "DATETIME");
+
     addColumnIfMissing("orders", "cancel_reason", "TEXT");
     addColumnIfMissing("orders", "cancelled_by", "INTEGER");
     addColumnIfMissing("orders", "cancelled_at", "DATETIME");

@@ -51,3 +51,18 @@ export async function getTableActiveBill(tableId) {
   const response = await apiClient.get(`/tables/${tableId}/active-bill`);
   return response.data;
 }
+
+export async function deactivateProduct(productId) {
+  const response = await apiClient.patch(`/products/${productId}/deactivate`);
+  return response.data;
+}
+
+export async function getLowStockProducts() {
+  const response = await apiClient.get("/products?low_stock=1");
+  return response.data;
+}
+
+export async function deactivateTable(tableId) {
+  const response = await apiClient.patch(`/tables/${tableId}/deactivate`);
+  return response.data;
+}
