@@ -23,7 +23,14 @@ function getTables() {
             END
           ),
           0
-      ) AS unpaid_total
+        ) AS unpaid_total,
+
+        COUNT(
+          CASE 
+            WHEN orders.status = 'bill_printed'
+            THEN orders.id
+          END
+        ) AS bill_printed_count
 
       FROM restaurant_tables
       LEFT JOIN orders
@@ -189,7 +196,9 @@ function deactivateTable(tableId) {
         if (countErr) return reject(countErr);
 
         if (Number(row?.open_count || 0) > 0) {
-          return reject(new Error("Cannot deactivate a table with open unpaid orders"));
+          return reject(
+            new Error("Cannot deactivate a table with open unpaid orders")
+          );
         }
 
         db.run(

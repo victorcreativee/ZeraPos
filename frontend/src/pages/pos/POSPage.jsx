@@ -124,8 +124,26 @@ function POSPage() {
   }
 
   function handleAddToCart(product) {
+    const isTracked = Number(product.track_stock) === 1;
+    const stockQuantity = Number(product.stock_quantity || 0);
+
+    if (isTracked && stockQuantity <= 0) {
+      setError(`${product.name} is out of stock.`);
+      return;
+    }
+
+    setError("");
+
     setCartItems((previousItems) => {
       const existingItem = previousItems.find((item) => item.id === product.id);
+      const currentCartQty = existingItem
+        ? Number(existingItem.quantity || 0)
+        : 0;
+
+      if (isTracked && currentCartQty + 1 > stockQuantity) {
+        setError(`Only ${stockQuantity} ${product.name} left in stock.`);
+        return previousItems;
+      }
 
       if (existingItem) {
         return previousItems.map((item) =>
@@ -144,6 +162,7 @@ function POSPage() {
           quantity: 1,
           send_to: product.send_to || "none",
           track_stock: product.track_stock,
+          stock_quantity: product.stock_quantity,
         },
       ];
     });
@@ -151,9 +170,20 @@ function POSPage() {
 
   function handleIncrease(id) {
     setCartItems((previousItems) =>
-      previousItems.map((item) =>
-        item.id === id ? { ...item, quantity: item.quantity + 1 } : item
-      )
+      previousItems.map((item) => {
+        const isTracked = Number(item.track_stock) === 1;
+        const stockQuantity = Number(item.stock_quantity || 0);
+
+        if (item.id !== id) return item;
+
+        if (isTracked && Number(item.quantity || 0) + 1 > stockQuantity) {
+          setError(`Only ${stockQuantity} ${item.name} left in stock.`);
+          return item;
+        }
+
+        setError("");
+        return { ...item, quantity: item.quantity + 1 };
+      })
     );
   }
 
@@ -288,8 +318,8 @@ function POSPage() {
         showBackToDashboard={true}
       />
 
-      <main className="h-[calc(100vh-78px)] p-3 grid xl:grid-cols-[minmax(0,1fr)_430px] gap-3 overflow-hidden">
-        <section className="min-h-0 flex flex-col gap-3 overflow-hidden">
+      <main className="h-[calc(100vh-78px)] p-2 grid xl:grid-cols-[minmax(0,1fr)_430px] gap-2 overflow-hidden">
+        <section className="min-h-0 flex flex-col gap-2 overflow-hidden">
           <WaiterSummaryBar
             todaySales={waiterStats.my_sales_today || 0}
             tablesServed={waiterStats.my_tables_served_today || 0}
@@ -297,7 +327,7 @@ function POSPage() {
             onOpenPreviousOrders={openPreviousOrders}
           />
 
-          <div className="rounded-[24px] border border-slate-200 bg-white p-3 shadow-sm">
+          <div className="rounded-[22px] border border-slate-200 bg-white p-2 shadow-sm">
             <TableSelector
               tables={tables}
               selectedTable={selectedTable}
@@ -305,7 +335,7 @@ function POSPage() {
             />
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+          <div className="rounded-2xl border border-slate-200 bg-white px-2 py-1.5 shadow-sm">
             <CategoryTabs
               categories={categories}
               selectedCategory={selectedCategory}
@@ -313,7 +343,7 @@ function POSPage() {
             />
           </div>
 
-          <div className="min-h-0 flex-1 rounded-[24px] border border-slate-200 bg-white p-3 shadow-sm overflow-hidden">
+          <div className="min-h-0 flex-1 rounded-[22px] border border-slate-200 bg-white p-2 shadow-sm overflow-hidden">
             {loading ? (
               <div className="h-full flex items-center justify-center font-bold text-slate-500">
                 Loading POS...

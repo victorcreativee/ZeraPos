@@ -131,7 +131,11 @@ function validateProductPayload(data) {
     throw new Error("Product name is required");
   }
 
-  if (data.price === undefined || data.price === null || Number(data.price) < 0) {
+  if (
+    data.price === undefined ||
+    data.price === null ||
+    Number(data.price) < 0
+  ) {
     throw new Error("Valid selling price is required");
   }
 }
@@ -225,76 +229,82 @@ function updateProduct(productId, data) {
     try {
       validateProductPayload(data);
 
-      db.get("SELECT * FROM products WHERE id = ?", [productId], (findErr, existing) => {
-        if (findErr) return reject(findErr);
-        if (!existing) return reject(new Error("Product not found"));
+      db.get(
+        "SELECT * FROM products WHERE id = ?",
+        [productId],
+        (findErr, existing) => {
+          if (findErr) return reject(findErr);
+          if (!existing) return reject(new Error("Product not found"));
 
-        const {
-          name,
-          category_id,
-          price,
-          cost_price,
-          item_type,
-          send_to,
-          track_stock,
-          stock_quantity,
-          low_stock_level,
-          updated_by = null,
-        } = data;
+          const {
+            name,
+            category_id,
+            price,
+            cost_price,
+            item_type,
+            send_to,
+            track_stock,
+            stock_quantity,
+            low_stock_level,
+            updated_by = null,
+          } = data;
 
-        const previousQty = Number(existing.stock_quantity || 0);
-        const nextQty = Number(stock_quantity || 0);
-        const qtyDifference = nextQty - previousQty;
+          const previousQty = Number(existing.stock_quantity || 0);
+          const nextQty = Number(stock_quantity || 0);
+          const qtyDifference = nextQty - previousQty;
 
-        db.run(
-          `
-          UPDATE products
-          SET
-            name = ?,
-            category_id = ?,
-            price = ?,
-            cost_price = ?,
-            item_type = ?,
-            send_to = ?,
-            track_stock = ?,
-            stock_quantity = ?,
-            low_stock_level = ?,
-            updated_at = CURRENT_TIMESTAMP
-          WHERE id = ?
-          `,
-          [
-            name.trim(),
-            category_id || null,
-            Number(price),
-            Number(cost_price || 0),
-            item_type || "general",
-            send_to || "none",
-            track_stock ? 1 : 0,
-            nextQty,
-            Number(low_stock_level || 0),
-            productId,
-          ],
-          async function (err) {
-            if (err) return reject(err);
+          db.run(
+            `
+            UPDATE products
+            SET
+              name = ?,
+              category_id = ?,
+              price = ?,
+              cost_price = ?,
+              item_type = ?,
+              send_to = ?,
+              track_stock = ?,
+              stock_quantity = ?,
+              low_stock_level = ?,
+              updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            `,
+            [
+              name.trim(),
+              category_id || null,
+              Number(price),
+              Number(cost_price || 0),
+              item_type || "general",
+              send_to || "none",
+              track_stock ? 1 : 0,
+              nextQty,
+              Number(low_stock_level || 0),
+              productId,
+            ],
 
-            if (track_stock && qtyDifference !== 0) {
-              await recordStockMovement({
-                product_id: Number(productId),
-                movement_type: qtyDifference > 0 ? "adjustment_in" : "adjustment_out",
-                quantity: Math.abs(qtyDifference),
-                previous_quantity: previousQty,
-                new_quantity: nextQty,
-                reference_type: "product",
-                reference_id: Number(productId),
-                note: "Manual stock adjustment from product edit",
-                created_by: updated_by,
-              }).catch(() => null);
+            async function (err) {
+              if (err) return reject(err);
+
+              if (track_stock && qtyDifference !== 0) {
+                await recordStockMovement({
+                  product_id: Number(productId),
+                  movement_type:
+                    qtyDifference > 0 ? "adjustment_in" : "adjustment_out",
+                  quantity: Math.abs(qtyDifference),
+                  previous_quantity: previousQty,
+                  new_quantity: nextQty,
+                  reference_type: "product",
+                  reference_id: Number(productId),
+                  note: "Manual stock adjustment from product edit",
+                  created_by: updated_by,
+                }).catch(() => null);
+              }
+
+              resolve({ id: Number(productId), ...data });
             }
-
-            resolve({ id: Number(productId), ...data });
-          }
-        );
-      });
+          );
+        }
+      );
     } catch (error) {
       reject(error);
     }

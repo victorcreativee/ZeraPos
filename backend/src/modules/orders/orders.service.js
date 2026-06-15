@@ -188,7 +188,6 @@ function refreshTableStatus(tableId) {
         console.log("Failed to refresh table status", err.message);
         return;
       }
-
       const nextStatus =
         Number(row?.open_count || 0) > 0 ? "occupied" : "available";
 
@@ -797,11 +796,23 @@ function markCombinedTableBillPrinted(tableId) {
       function (err) {
         if (err) return reject(err);
 
-        resolve({
-          success: true,
-          table_id: tableId,
-          updated_orders: this.changes,
-        });
+        db.run(
+          `
+          UPDATE restaurant_tables
+          SET status = 'waiting_bill'
+          WHERE id = ?
+          `,
+          [tableId],
+          (tableErr) => {
+            if (tableErr) return reject(tableErr);
+
+            resolve({
+              success: true,
+              table_id: tableId,
+              updated_orders: this.changes,
+            });
+          }
+        );
       }
     );
   });

@@ -16,7 +16,7 @@ function TableSelector({ tables, selectedTable, onSelectTable }) {
         </p>
       </div>
 
-      <div className="grid grid-cols-6 gap-3 max-h-[205px] overflow-y-auto pr-1">
+      <div className="grid grid-cols-6 gap-3 max-h-[240px] overflow-y-auto pr-1">
         {allTables.map((table) => {
           const isTakeaway = table.id === null;
 
@@ -28,10 +28,16 @@ function TableSelector({ tables, selectedTable, onSelectTable }) {
             table.unpaid_total || table.open_balance || 0
           );
 
+          const billPrintedCount = Number(table.bill_printed_count || 0);
+
+          const isWaitingBill =
+            billPrintedCount > 0 || table.status === "waiting_bill";
+
           const isOccupied =
             openOrdersCount > 0 ||
             unpaidTotal > 0 ||
-            table.status === "occupied";
+            table.status === "occupied" ||
+            isWaitingBill;
 
           const hasLargeBill = unpaidTotal >= 100000;
           const isBusy = openOrdersCount >= 3;
@@ -40,7 +46,7 @@ function TableSelector({ tables, selectedTable, onSelectTable }) {
             <button
               key={table.id || "takeaway"}
               onClick={() => onSelectTable(isTakeaway ? null : table)}
-              className={`h-[88px] rounded-2xl border px-4 py-3 text-left transition active:scale-[0.98] ${
+              className={`h-[105px] rounded-2xl border px-4 py-3 text-left transition active:scale-[0.98] ${
                 isSelected
                   ? "bg-emerald-600 border-emerald-600 text-white"
                   : hasLargeBill
@@ -65,7 +71,9 @@ function TableSelector({ tables, selectedTable, onSelectTable }) {
                         : "bg-emerald-100 text-emerald-700"
                     }`}
                   >
-                    {hasLargeBill
+                    {isWaitingBill
+                      ? "Waiting Bill"
+                      : hasLargeBill
                       ? "High Bill"
                       : isBusy
                       ? "Busy"
@@ -83,6 +91,8 @@ function TableSelector({ tables, selectedTable, onSelectTable }) {
               >
                 {isTakeaway
                   ? "Walk-in order"
+                  : isWaitingBill
+                  ? "Bill printed • waiting payment"
                   : isOccupied
                   ? `${openOrdersCount} open order${
                       openOrdersCount === 1 ? "" : "s"
