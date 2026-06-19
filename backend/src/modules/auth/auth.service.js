@@ -2,14 +2,18 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const db = require("../../database/db");
 
+const JWT_SECRET =
+  process.env.JWT_SECRET || "zera-pos-offline-desktop-secret-change-later";
+
 function generateToken(user) {
   return jwt.sign(
     {
       id: user.id,
       name: user.name,
+      email: user.email,
       role: user.role,
     },
-    process.env.JWT_SECRET,
+    JWT_SECRET,
     {
       expiresIn: process.env.JWT_EXPIRES_IN || "7d",
     }

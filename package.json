@@ -9,14 +9,17 @@
     "backend": "cd backend && npm run dev",
     "desktop": "concurrently \"npm run frontend\" \"wait-on http://localhost:5173 && electron desktop/main.cjs\"",
     "build:frontend": "cd frontend && npm run build",
-    "desktop:build": "npm run build:frontend && cd backend && npm install && cd .. && electron-builder"
+    "build:backend": "cd backend && npm ci --omit=dev",
+    "desktop:build": "npm run build:frontend && npm run build:backend && electron-builder",
+    "desktop:build:mac": "npm run build:frontend && npm run build:backend && electron-builder --mac dmg"
   },
   "build": {
-    "appId": "com.zerapos.desktop",
+    "appId": "com.zera.pos",
     "productName": "Zera POS",
     "directories": {
       "output": "release"
     },
+    "asar": true,
     "files": [
       "desktop/**/*",
       "package.json"
@@ -27,27 +30,30 @@
         "to": "frontend/dist"
       },
       {
-        "from": "backend",
-        "to": "backend",
+        "from": "backend/src",
+        "to": "backend/src"
+      },
+      {
+        "from": "backend/package.json",
+        "to": "backend/package.json"
+      },
+      {
+        "from": "backend/package-lock.json",
+        "to": "backend/package-lock.json"
+      },
+      {
+        "from": "backend/node_modules",
+        "to": "backend/node_modules",
         "filter": [
           "**/*",
-          "!node_modules/.cache/**"
+          "!nodemon/**",
+          "!.cache/**"
         ]
       }
     ],
     "mac": {
       "target": "dmg",
       "category": "public.app-category.business"
-    },
-    "win": {
-      "target": "nsis"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "Zera POS"
     }
   },
   "repository": {
