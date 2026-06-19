@@ -1,0 +1,71 @@
+{
+  "name": "zerapos",
+  "version": "1.0.0",
+  "main": "desktop/main.cjs",
+  "author": "",
+  "description": "Restaurant POS desktop application",
+  "scripts": {
+    "frontend": "cd frontend && npm run dev",
+    "backend": "cd backend && npm run dev",
+    "desktop": "concurrently \"npm run frontend\" \"wait-on http://localhost:5173 && electron desktop/main.cjs\"",
+    "build:frontend": "cd frontend && npm run build",
+    "desktop:build": "npm run build:frontend && cd backend && npm install && cd .. && electron-builder"
+  },
+  "build": {
+    "appId": "com.zerapos.desktop",
+    "productName": "Zera POS",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "desktop/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "frontend/dist",
+        "to": "frontend/dist"
+      },
+      {
+        "from": "backend",
+        "to": "backend",
+        "filter": [
+          "**/*",
+          "!node_modules/.cache/**"
+        ]
+      }
+    ],
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.business"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Zera POS"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/victorcreativee/ZeraPos.git"
+  },
+  "keywords": [],
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/victorcreativee/ZeraPos/issues"
+  },
+  "homepage": "https://github.com/victorcreativee/ZeraPos#readme",
+  "devDependencies": {
+    "concurrently": "^10.0.3",
+    "cross-env": "^10.1.0",
+    "electron": "^42.4.0",
+    "electron-builder": "^26.15.3",
+    "wait-on": "^9.0.10"
+  }
+}

@@ -13,6 +13,7 @@ const tablesRoutes = require("./modules/tables/tables.routes");
 const ordersRoutes = require("./modules/orders/orders.routes");
 const reportsRoutes = require("./modules/reports/reports.routes");
 const settingsRoutes = require("./modules/settings/settings.routes");
+const backupsRoutes = require("./modules/backups/backups.routes");
 const app = express();
 
 initDatabase();
@@ -35,6 +36,7 @@ app.use("/api/tables", tablesRoutes);
 app.use("/api/orders", ordersRoutes);
 app.use("/api/reports", reportsRoutes);
 app.use("/api/settings", settingsRoutes);
+app.use("/api/backups", backupsRoutes);
 
 app.get("/api/protected", requireAuth, (req, res) => {
   res.json({

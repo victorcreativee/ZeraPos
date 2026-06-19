@@ -1,0 +1,16 @@
+node_modules/
+frontend/node_modules/
+backend/node_modules/
+
+release/
+dist/
+frontend/dist/
+backend/backups/
+
+*.dmg
+*.exe
+*.zip
+
+.DS_Store
+.env
+*.log

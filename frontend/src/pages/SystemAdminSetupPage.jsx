@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import AppHeader from "../components/layout/AppHeader";
+
 import {
   createCategory,
   createProduct,
@@ -14,6 +15,12 @@ import {
   getProducts,
   getTables,
 } from "../api/posApi";
+import {
+  createBackup,
+  getBackups,
+  restoreBackup,
+  openBackupsFolder,
+} from "../api/backupsApi";
 
 const modules = [
   { key: "tables", label: "Tables", title: "Tables & Areas" },
@@ -174,7 +181,6 @@ function SystemAdminSetupPage() {
     }
   }
 
-
   async function handleDeactivateProduct(product) {
     const hasConfirmed = window.confirm(
       `Deactivate ${product.name}? It will be hidden from new orders but old orders remain safe.`
@@ -328,7 +334,10 @@ function SystemAdminSetupPage() {
         )}
 
         {activeModule === "inventory" && (
-          <InventoryModule products={products} lowStockProducts={lowStockProducts} />
+          <InventoryModule
+            products={products}
+            lowStockProducts={lowStockProducts}
+          />
         )}
 
         {activeModule === "backup" && <BackupModule />}
@@ -728,14 +737,19 @@ function MenuModule({
 }
 
 function InventoryModule({ products, lowStockProducts }) {
-  const trackedProducts = products.filter((product) => Number(product.track_stock) === 1);
+  const trackedProducts = products.filter(
+    (product) => Number(product.track_stock) === 1
+  );
   const stockValue = trackedProducts.reduce((sum, product) => {
-    return sum + Number(product.stock_quantity || 0) * Number(product.cost_price || 0);
+    return (
+      sum +
+      Number(product.stock_quantity || 0) * Number(product.cost_price || 0)
+    );
   }, 0);
 
   return (
     <div className="space-y-5">
-      <div className="grid md:grid-cols-3 gap-3">
+      <div className="grid md:grid-cols-3 xl:grid-cols-6 gap-3">
         <InfoCard
           title="Tracked Items"
           value={trackedProducts.length}
@@ -753,7 +767,10 @@ function InventoryModule({ products, lowStockProducts }) {
         />
       </div>
 
-      <Panel title="Low Stock Items" subtitle="Operational warning list for admin or manager">
+      <Panel
+        title="Low Stock Items"
+        subtitle="Operational warning list for admin or manager"
+      >
         {lowStockProducts.length === 0 ? (
           <div className="border border-slate-200 bg-slate-50 p-8 text-center text-sm font-black text-slate-400">
             No low stock items right now.
@@ -772,12 +789,26 @@ function InventoryModule({ products, lowStockProducts }) {
               </thead>
               <tbody>
                 {lowStockProducts.map((product) => (
-                  <tr key={product.id} className="border-b border-slate-100 font-bold text-slate-700">
-                    <td className="py-3 pr-3 font-black text-slate-950">{product.name}</td>
-                    <td className="py-3 pr-3">{product.category_name || "-"}</td>
-                    <td className="py-3 pr-3">{Number(product.stock_quantity || 0).toLocaleString()}</td>
-                    <td className="py-3 pr-3">{Number(product.low_stock_level || 0).toLocaleString()}</td>
-                    <td className="py-3 pr-3">{product.stock_status?.replaceAll("_", " ") || "low stock"}</td>
+                  <tr
+                    key={product.id}
+                    className="border-b border-slate-100 font-bold text-slate-700"
+                  >
+                    <td className="py-3 pr-3 font-black text-slate-950">
+                      {product.name}
+                    </td>
+                    <td className="py-3 pr-3">
+                      {product.category_name || "-"}
+                    </td>
+                    <td className="py-3 pr-3">
+                      {Number(product.stock_quantity || 0).toLocaleString()}
+                    </td>
+                    <td className="py-3 pr-3">
+                      {Number(product.low_stock_level || 0).toLocaleString()}
+                    </td>
+                    <td className="py-3 pr-3">
+                      {product.stock_status?.replaceAll("_", " ") ||
+                        "low stock"}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -790,24 +821,247 @@ function InventoryModule({ products, lowStockProducts }) {
 }
 
 function BackupModule() {
+  const [backups, setBackups] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  async function loadBackups() {
+    try {
+      setLoading(true);
+      const response = await getBackups();
+      setBackups(response.data || []);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to load backups");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleCreateBackup() {
+    try {
+      setCreating(true);
+      setMessage("");
+      setError("");
+
+      await createBackup();
+      await loadBackups();
+
+      setMessage("Backup created successfully");
+      setTimeout(() => setMessage(""), 3000);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to create backup");
+    } finally {
+      setCreating(false);
+    }
+  }
+  async function handleRestoreBackup(fileName) {
+    const confirmed = window.confirm(
+      `Restore backup ${fileName}?\n\nCurrent database will be backed up automatically first.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setMessage("");
+      setError("");
+
+      await restoreBackup(fileName);
+
+      setMessage(
+        "Database restored successfully. Please restart the application."
+      );
+
+      setTimeout(() => setMessage(""), 5000);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to restore backup");
+    }
+  }
+  async function handleOpenBackupFolder() {
+    try {
+      setError("");
+      await openBackupsFolder();
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to open backup folder");
+    }
+  }
+  useEffect(() => {
+    loadBackups();
+  }, []);
+  const automaticBackups = backups.filter((backup) =>
+    backup.file_name?.startsWith("auto-backup-")
+  );
+
+  const latestBackup = backups[0];
+
+  const latestBackupDate = latestBackup?.created_at
+    ? new Date(latestBackup.created_at).toLocaleString()
+    : "No backup yet";
   return (
-    <Panel title="Backup & Sync" subtitle="Protect local business data">
+    <Panel title="Backup & Sync" subtitle="Protect local restaurant data">
       <div className="grid md:grid-cols-3 gap-3">
         <InfoCard
-          title="Local SQLite"
-          value="Primary"
-          text="The desktop database remains the source of truth for offline operations."
+          title="Database"
+          value="SQLite"
+          text="Your restaurant data is stored locally on this computer."
+        />
+
+        <InfoCard
+          title="Backups"
+          value={backups.length}
+          text="Manual database backup files already created."
+        />
+
+        <InfoCard
+          title="Automatic Backups"
+          value="Enabled"
+          text={`Retention: latest 30 daily backups. Auto backups found: ${automaticBackups.length}.`}
         />
         <InfoCard
-          title="Manual Backup"
-          value="Next"
-          text="We will add a safe backup button that copies the SQLite database file."
+          title="Auto Backup"
+          value="Enabled"
+          text="System creates one automatic backup every day."
         />
+
         <InfoCard
-          title="Cloud Sync"
-          value="Later"
-          text="Optional cloud sync can be added for multi-device or premium packages."
+          title="Retention"
+          value="30 days"
+          text="Old automatic backups are cleaned safely."
         />
+
+        <InfoCard
+          title="Last Backup"
+          value={
+            backups.length > 0
+              ? new Date(backups[0].created_at).toLocaleDateString()
+              : "None"
+          }
+          text="Most recent backup available in the system."
+        />
+      </div>
+      <div className="mt-5 border border-emerald-200 bg-emerald-50 p-5">
+        <p className="text-xs font-black uppercase tracking-wide text-emerald-700">
+          Backup Status
+        </p>
+
+        <h3 className="mt-2 text-xl font-black text-slate-950">
+          Automatic daily backups are enabled
+        </h3>
+
+        <p className="mt-1 text-sm font-semibold text-slate-600">
+          Last backup: {latestBackupDate}
+        </p>
+
+        <p className="mt-1 text-sm font-semibold text-slate-500">
+          Zera POS creates one automatic backup per day and keeps the latest 30
+          automatic backups.
+        </p>
+      </div>
+
+      <div className="mt-5 border border-slate-200 bg-slate-50 p-5">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h3 className="text-lg font-black text-slate-950">
+              Manual Database Backup
+            </h3>
+            <p className="mt-1 text-sm font-semibold text-slate-500">
+              Create a safe copy of the current Zera POS database.
+            </p>
+          </div>
+          <button
+            onClick={handleOpenBackupFolder}
+            className="bg-white border border-slate-300 px-5 py-3 text-sm font-black text-slate-800"
+          >
+            Open Folder
+          </button>
+          <button
+            onClick={handleCreateBackup}
+            disabled={creating}
+            className="bg-slate-950 px-5 py-3 text-sm font-black text-white disabled:opacity-50"
+          >
+            {creating ? "Creating..." : "Create Backup"}
+          </button>
+        </div>
+
+        {(message || error) && (
+          <div
+            className={`mt-4 border px-4 py-3 text-sm font-black ${
+              message
+                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                : "border-red-200 bg-red-50 text-red-700"
+            }`}
+          >
+            {message || error}
+          </div>
+        )}
+      </div>
+
+      <div className="mt-5 border border-slate-200 bg-white">
+        <div className="border-b border-slate-200 px-5 py-4">
+          <h3 className="text-lg font-black text-slate-950">Backup History</h3>
+        </div>
+
+        {loading ? (
+          <div className="p-6 text-sm font-black text-slate-400">
+            Loading backups...
+          </div>
+        ) : backups.length === 0 ? (
+          <div className="p-6 text-sm font-black text-slate-400">
+            No backups created yet.
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {backups.map((backup) => (
+              <div
+                key={backup.file_name}
+                className="flex items-center justify-between gap-4 px-5 py-4"
+              >
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="font-black text-slate-950">
+                      {backup.file_name}
+                    </p>
+
+                    <span
+                      className={`rounded-full px-2 py-1 text-[10px] font-black uppercase ${
+                        backup.file_name?.startsWith("auto-backup-")
+                          ? "bg-blue-100 text-blue-700"
+                          : backup.file_name?.startsWith("pre-restore-")
+                          ? "bg-amber-100 text-amber-700"
+                          : "bg-emerald-100 text-emerald-700"
+                      }`}
+                    >
+                      {backup.file_name?.startsWith("auto-backup-")
+                        ? "Auto"
+                        : backup.file_name?.startsWith("pre-restore-")
+                        ? "Safety"
+                        : "Manual"}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs font-semibold text-slate-500">
+                    {backup.backup_path}
+                  </p>
+                </div>
+
+                <div className="text-right">
+                  <p className="text-sm font-black text-slate-700">
+                    {(Number(backup.size || 0) / 1024 / 1024).toFixed(2)} MB
+                  </p>
+                  <p className="mt-1 text-xs font-semibold text-slate-400">
+                    {new Date(backup.created_at).toLocaleString()}
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleRestoreBackup(backup.file_name)}
+                  className="bg-amber-500 px-4 py-2 text-xs font-black text-white"
+                >
+                  Restore
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </Panel>
   );
